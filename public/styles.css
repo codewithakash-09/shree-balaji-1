@@ -19,6 +19,10 @@ body { background: var(--bg); color: var(--text); padding-bottom: 80px; }
 .cart-toggle { background: transparent; border: none; color: white; font-size: 1.5rem; position: relative; cursor: pointer; }
 .badge { position: absolute; top: -8px; right: -8px; background: var(--secondary); font-size: 0.75rem; padding: 2px 6px; border-radius: 20px; font-weight: 600; }
 
+.fa-leaf:before {
+  content: "🥬";
+  font-style: normal;
+}
 /* Hero */
 .hero { text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #e8f5e9, #c8e6c9); }
 .hero h2 { color: var(--primary); font-size: 1.8rem; margin-bottom: 5px; }
