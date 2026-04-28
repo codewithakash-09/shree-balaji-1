@@ -260,7 +260,26 @@ app.get('/api/track-order/:orderId', async (req, res) => {
     res.status(500).json({ success: false, error: "Server error" });
   }
 });
-
+// Order History API (by phone number)
+app.get('/api/order-history/:phone', async (req, res) => {
+  const phone = req.params.phone;
+  
+  try {
+    const customerOrders = orders.filter(o => o.customer_phone === phone);
+    
+    const formattedOrders = customerOrders
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .map(order => ({
+        ...order,
+        items: JSON.parse(order.items_json)
+      }));
+    
+    res.json({ success: true, orders: formattedOrders });
+  } catch (err) {
+    console.error('Order history error:', err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
 // Admin Status Update Endpoint
 app.post('/api/update-order-status', async (req, res) => {
   const { orderId, newStatus, adminKey } = req.body;
