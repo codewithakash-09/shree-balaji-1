@@ -41,16 +41,17 @@
 </nav>
 
   <div class="trust-badges">
+    <span><i class="fas fa-shield-alt"></i>Time: 7:00 AM - 12:00 PM | 4:00 PM - 10:00 PM</span>
     <span><i class="fas fa-award"></i> Freshness Guarantee</span>
     <span><i class="fas fa-truck-fast"></i> 15-Min Delivery</span>
     <span><i class="fas fa-tractor"></i> Direct Mandi Supply</span>
   </div>
 
   <div class="category-filters">
-    <button class="cat-btn active" onclick="setCategory('All')">All</button>
-    <button class="cat-btn" onclick="setCategory('Fruits')">Fruits</button>
-    <button class="cat-btn" onclick="setCategory('Vegetables')">Vegetables</button>
-    <button class="cat-btn combo-btn" onclick="setCategory('Combo')">Weekend Combos %</button>
+   <button class="cat-btn active" onclick="setCategory('All', this)">All</button>
+<button class="cat-btn" onclick="setCategory('Fruits', this)">Fruits</button>
+<button class="cat-btn" onclick="setCategory('Vegetables', this)">Vegetables</button>
+<button class="cat-btn combo-btn" onclick="setCategory('Combo', this)">Weekend Combos %</button>
   </div>
 
   <main class="container">
