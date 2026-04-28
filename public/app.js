@@ -15,7 +15,31 @@ const DOM = {
   customerForm: document.getElementById('customerForm'),
   payBtn: document.getElementById('payBtn')
 };
+// Helper to get default quantity based on unit
+function getDefaultQty(unit) {
+  if (unit.includes('kg')) return 1; // Default 1kg
+  if (unit.includes('g') || unit.includes('100g') || unit.includes('250g')) return 1; // Default 1 unit
+  if (unit.includes('pc') || unit.includes('pkt')) return 1;
+  return 1;
+}
 
+// Helper to get quantity options based on unit
+function getQuantityOptions(unit) {
+  if (unit === 'kg') {
+    return [0.25, 0.5, 1, 1.5, 2, 3, 5];
+  } else if (unit === '500g') {
+    return [0.5, 1, 1.5, 2]; // Multiples of 500g
+  } else if (unit === '250g') {
+    return [0.5, 1, 2, 3, 4]; // Multiples of 250g
+  } else if (unit === '100g') {
+    return [0.5, 1, 2, 3, 4, 5]; // Multiples of 100g
+  } else if (unit === '12pc') {
+    return [0.5, 1, 2]; // 0.5 = 6 bananas
+  } else if (unit === 'pkt') {
+    return [1, 2, 3];
+  }
+  return [1, 2, 3];
+}
 // Create a simple fallback image as a constant
 const FALLBACK_IMAGE = 'data:image/svg+xml,' + encodeURIComponent(`
   <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
@@ -43,17 +67,16 @@ async function init() {
   }
 }
 
-function setCategory(cat) {
+function setCategory(cat, el) {
   currentCategory = cat;
   document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
-  event.target.classList.add('active');
+  if (el) el.classList.add('active');
   renderProducts();
 }
 
 function filterProducts() {
   renderProducts();
 }
-
 function renderProducts() {
   const searchInput = document.getElementById('searchInput');
   if (!searchInput) return;
@@ -72,7 +95,11 @@ function renderProducts() {
         <p>No products found for "${searchTerm}"</p>
       </div>`;
   } else {
-    DOM.productsContainer.innerHTML = filtered.map(p => `
+    DOM.productsContainer.innerHTML = filtered.map(p => {
+      const options = getQuantityOptions(p.unit);
+      const defaultQty = options[0];
+      const defaultPrice = (p.price * defaultQty).toFixed(2);
+      return `
       <div class="product-card">
         <img src="${p.image}" 
              alt="${p.name}" 
@@ -80,62 +107,169 @@ function renderProducts() {
              onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
         <div class="product-info">
           <h3>${p.name}</h3>
-          <div class="price">₹${p.price} <span>/${p.unit}</span></div>
-          <button class="btn-add" onclick="addToCart(${p.id})">Add to Cart</button>
+          <div class="price">₹<span id="price_${p.id}">${defaultPrice}</span> <span id="unit_${p.id}">/${p.unit}</span></div>
+          <div class="qty-selector">
+            <select class="qty-dropdown" id="qty_${p.id}" onchange="updateProductPrice(${p.id}, ${p.price}, this.value)">
+              ${options.map(val => {
+                let label = '';
+                if (p.unit === 'kg' && val >= 1) label = `${val} kg`;
+                else if (p.unit === 'kg' && val < 1) label = `${val * 1000}g`;
+                else if (p.unit === '500g' && val === 0.5) label = '250g';
+                else if (p.unit === '500g') label = `${val * 500}g`;
+                else if (p.unit === '250g' && val === 0.5) label = '125g';
+                else if (p.unit === '250g') label = `${val * 250}g`;
+                else if (p.unit === '100g' && val === 0.5) label = '50g';
+                else if (p.unit === '100g') label = `${val * 100}g`;
+                else if (p.unit === '12pc' && val === 0.5) label = '6 pieces';
+                else if (p.unit === '12pc') label = `${val * 12} pieces`;
+                else label = `${val} ${p.unit}`;
+                return `<option value="${val}">${label}</option>`;
+              }).join('')}
+            </select>
+            <button class="btn-add" onclick="addToCart(${p.id})">Add to Cart</button>
+          </div>
         </div>
       </div>
-    `).join('');
+    `}).join('');
   }
 }
-
+function updateProductPrice(productId, unitPrice, selectedQty) {
+  const priceElement = document.getElementById(`price_${productId}`);
+  const unitElement = document.getElementById(`unit_${productId}`);
+  
+  if (priceElement) {
+    const totalPrice = (unitPrice * parseFloat(selectedQty)).toFixed(2);
+    priceElement.textContent = totalPrice;
+  }
+  
+  // Find the product to get its original unit
+  const product = products.find(p => p.id === productId);
+  if (unitElement && product) {
+    const qty = parseFloat(selectedQty);
+    let unitDisplay = '';
+    
+    if (product.unit === 'kg') {
+      unitDisplay = qty >= 1 ? `/${qty} kg` : `/${qty * 1000}g`;
+    } else if (product.unit === '500g') {
+      if (qty === 0.5) unitDisplay = '/250g';
+      else if (qty === 1) unitDisplay = '/500g';
+      else if (qty === 1.5) unitDisplay = '/750g';
+      else if (qty === 2) unitDisplay = '/1kg';
+      else unitDisplay = `/${qty * 500}g`;
+    } else if (product.unit === '250g') {
+      if (qty === 0.5) unitDisplay = '/125g';
+      else if (qty === 1) unitDisplay = '/250g';
+      else if (qty === 2) unitDisplay = '/500g';
+      else if (qty === 3) unitDisplay = '/750g';
+      else if (qty === 4) unitDisplay = '/1kg';
+      else unitDisplay = `/${qty * 250}g`;
+    } else if (product.unit === '100g') {
+      if (qty === 0.5) unitDisplay = '/50g';
+      else if (qty === 1) unitDisplay = '/100g';
+      else if (qty === 2) unitDisplay = '/200g';
+      else if (qty === 3) unitDisplay = '/300g';
+      else if (qty === 4) unitDisplay = '/400g';
+      else if (qty === 5) unitDisplay = '/500g';
+      else unitDisplay = `/${qty * 100}g`;
+    } else if (product.unit === '12pc') {
+      if (qty === 0.5) unitDisplay = '/6 pieces';
+      else if (qty === 1) unitDisplay = '/12 pieces';
+      else if (qty === 2) unitDisplay = '/24 pieces';
+      else unitDisplay = `/${qty * 12} pieces`;
+    } else {
+      unitDisplay = `/${qty} ${product.unit}`;
+    }
+    
+    unitElement.textContent = unitDisplay;
+  }
+}
 function addToCart(id) {
+  const qtySelect = document.getElementById(`qty_${id}`);
+  const selectedQty = qtySelect ? parseFloat(qtySelect.value) : 1;
+  
   const existing = cart.find(item => item.id === id);
-  if (existing) existing.quantity++; 
-  else cart.push({ id, quantity: 1 });
+  if (existing) {
+    existing.quantity += selectedQty;
+  } else {
+    cart.push({ id, quantity: selectedQty });
+  }
   saveCart(); 
   toggleCart(true);
+}
+function removeFromCart(id) {
+  cart = cart.filter(item => item.id !== id);
+  saveCart();
 }
 
 function updateQty(id, change) {
   const item = cart.find(i => i.id === id);
   if (!item) return;
   item.quantity += change;
+  // Round to 2 decimal places to avoid floating point issues
+  item.quantity = Math.round(item.quantity * 100) / 100;
   if (item.quantity <= 0) cart = cart.filter(i => i.id !== id);
   saveCart();
 }
-
 function saveCart() { 
   localStorage.setItem('sbt_cart', JSON.stringify(cart)); 
   updateCartUI(); 
 }
-
 function updateCartUI() {
   let total = 0, count = 0, html = '';
   cart.forEach(item => {
     const p = products.find(p => p.id === item.id);
     if (!p) return;
-    total += p.price * item.quantity; 
+    
+    let displayQty = '';
+    if (p.unit === 'kg') {
+      displayQty = item.quantity >= 1 ? `${item.quantity} kg` : `${item.quantity * 1000}g`;
+    } else if (p.unit === '500g') {
+      displayQty = item.quantity > 1 ? `${item.quantity * 500}g (${item.quantity} × 500g)` : `${item.quantity * 500}g`;
+    } else if (p.unit === '250g') {
+      displayQty = item.quantity > 1 ? `${item.quantity * 250}g (${item.quantity} × 250g)` : `${item.quantity * 250}g`;
+    } else if (p.unit === '100g') {
+      displayQty = item.quantity > 1 ? `${item.quantity * 100}g (${item.quantity} × 100g)` : `${item.quantity * 100}g`;
+    } else {
+      displayQty = `${item.quantity} ${p.unit}`;
+    }
+    
+    const itemTotal = p.price * item.quantity;
+    total += itemTotal;
     count += item.quantity;
-    html += `
+    
+       html += `
       <div class="cart-item">
         <div class="cart-item-details">
-          <h4>${p.name}</h4>
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <h4 style="flex: 1;">${p.name}</h4>
+            <button onclick="removeFromCart(${p.id})" style="background: none; border: none; color: #ff5722; cursor: pointer; font-size: 1.2rem; padding: 0 5px;" title="Remove item">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </div>
           <div style="color:var(--primary); font-weight:bold;">₹${p.price} / ${p.unit}</div>
+          <div style="font-size: 0.85rem; color: #666;">Qty: ${displayQty}</div>
           <div class="qty-controls">
-            <button onclick="updateQty(${p.id}, -1)">-</button>
+            <button onclick="updateQty(${p.id}, -0.25)">-¼</button>
+            <button onclick="updateQty(${p.id}, -0.5)">-½</button>
             <span>${item.quantity}</span>
-            <button onclick="updateQty(${p.id}, 1)">+</button>
+            <button onclick="updateQty(${p.id}, 0.5)">+½</button>
+            <button onclick="updateQty(${p.id}, 0.25)">+¼</button>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+            <button onclick="removeFromCart(${p.id})" style="background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; padding: 3px 10px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-family: 'Poppins', sans-serif;">
+              🗑️ Remove
+            </button>
+            <span style="font-weight: bold; color: #ff5722;">₹${itemTotal.toFixed(2)}</span>
           </div>
         </div>
       </div>`;
   });
   DOM.cartItems.innerHTML = html || '<p style="text-align:center;padding:20px;color:#666;">🛒 Cart is empty</p>';
-  DOM.cartTotal.innerText = `₹${total}`;
-  DOM.cartCount.innerText = count;
+  DOM.cartTotal.innerText = `₹${total.toFixed(2)}`;
+  DOM.cartCount.innerText = Math.round(count * 100) / 100;
   DOM.checkoutBtn.disabled = total < 200;
-  DOM.minOrderWarning.innerText = total < 200 ? `Add ₹${200 - total} more for min order` : "✅ Free Delivery!";
+  DOM.minOrderWarning.innerText = total < 200 ? `Add ₹${(200 - total).toFixed(2)} more for min order` : "✅ Free Delivery!";
 }
-
 function toggleCart(forceOpen = false) {
   const isOpen = DOM.cartSidebar.classList.contains('open');
   if (isOpen && !forceOpen) { 
