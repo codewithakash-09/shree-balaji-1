@@ -95,12 +95,14 @@ function renderProducts() {
         <p>No products found for "${searchTerm}"</p>
       </div>`;
   } else {
-    DOM.productsContainer.innerHTML = filtered.map(p => {
+        DOM.productsContainer.innerHTML = filtered.map(p => {
       const options = getQuantityOptions(p.unit);
       const defaultQty = options[0];
       const defaultPrice = (p.price * defaultQty).toFixed(2);
+      const isOutOfStock = p.stock === false;
       return `
-      <div class="product-card">
+      <div class="product-card" style="${isOutOfStock ? 'opacity: 0.7;' : ''}">
+        ${isOutOfStock ? '<div class="sold-out-badge">SOLD OUT</div>' : ''}
         <img src="${p.image}" 
              alt="${p.name}" 
              loading="lazy"
@@ -109,7 +111,7 @@ function renderProducts() {
           <h3>${p.name}</h3>
           <div class="price">₹<span id="price_${p.id}">${defaultPrice}</span> <span id="unit_${p.id}">/${p.unit}</span></div>
           <div class="qty-selector">
-            <select class="qty-dropdown" id="qty_${p.id}" onchange="updateProductPrice(${p.id}, ${p.price}, this.value)">
+            <select class="qty-dropdown" id="qty_${p.id}" onchange="updateProductPrice(${p.id}, ${p.price}, this.value)" ${isOutOfStock ? 'disabled' : ''}>
               ${options.map(val => {
                 let label = '';
                 if (p.unit === 'kg' && val >= 1) label = `${val} kg`;
@@ -126,13 +128,16 @@ function renderProducts() {
                 return `<option value="${val}">${label}</option>`;
               }).join('')}
             </select>
-            <button class="btn-add" onclick="addToCart(${p.id})">Add to Cart</button>
+            ${isOutOfStock ? 
+              '<button class="btn-add" style="background: #ccc; cursor: not-allowed;" disabled>Out of Stock</button>' : 
+              `<button class="btn-add" onclick="addToCart(${p.id})">Add to Cart</button>`
+            }
           </div>
         </div>
       </div>
     `}).join('');
   }
-}
+  }
 function updateProductPrice(productId, unitPrice, selectedQty) {
   const priceElement = document.getElementById(`price_${productId}`);
   const unitElement = document.getElementById(`unit_${productId}`);
