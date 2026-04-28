@@ -428,7 +428,85 @@ async function trackOrder() {
     resultDiv.innerHTML = '<div style="background: #ffebee; padding: 15px; border-radius: 8px; color: #c62828;">❌ Server error. Please try again later.</div>';
   }
 }
+// Order History Functions
+function openHistoryModal() {
+  document.getElementById('historyModal').classList.add('show');
+}
 
+function closeHistoryModal() {
+  document.getElementById('historyModal').classList.remove('show');
+  document.getElementById('historyResult').innerHTML = '';
+  document.getElementById('historyPhone').value = '';
+}
+
+async function fetchOrderHistory() {
+  const phone = document.getElementById('historyPhone').value.trim();
+  const resultDiv = document.getElementById('historyResult');
+  
+  if (!phone || phone.length !== 10) {
+    resultDiv.innerHTML = '<div style="background: #ffebee; padding: 15px; border-radius: 8px; color: #c62828;">⚠️ Please enter a valid 10-digit phone number</div>';
+    return;
+  }
+  
+  resultDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Searching your orders...</div>';
+  
+  try {
+    const response = await fetch(`/api/order-history/${phone}`);
+    const data = await response.json();
+    
+    if (!response.ok || !data.success) {
+      resultDiv.innerHTML = '<div style="background: #ffebee; padding: 15px; border-radius: 8px; color: #c62828;">❌ No orders found for this phone number.</div>';
+      return;
+    }
+    
+    const orders = data.orders;
+    
+    if (orders.length === 0) {
+      resultDiv.innerHTML = '<div style="background: #fff3e0; padding: 15px; border-radius: 8px; color: #e65100;">📭 No orders found for this phone number.</div>';
+      return;
+    }
+    
+    let html = `<p style="font-weight: bold; margin-bottom: 15px;">📋 Found ${orders.length} order(s):</p>`;
+    
+    orders.forEach(order => {
+      const statusColors = {
+        'PENDING': '#ff9800',
+        'PAID': '#4caf50',
+        'COD_CONFIRMED': '#2196f3',
+        'PROCESSING': '#9c27b0',
+        'SHIPPED': '#ff5722',
+        'DELIVERED': '#2e7d32'
+      };
+      
+      html += `
+        <div style="background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong style="font-size: 0.9rem;">📦 ${order.id}</strong>
+            <span style="background: ${statusColors[order.status] || '#666'}; color: white; padding: 3px 10px; border-radius: 15px; font-size: 0.75rem; font-weight: 600;">${order.status}</span>
+          </div>
+          <p style="font-size: 0.8rem; color: #666;">📅 ${new Date(order.created_at).toLocaleString()}</p>
+          <p style="font-size: 0.85rem; font-weight: bold; color: #2e7d32;">💰 ₹${order.amount_inr} (${order.payment_method})</p>
+          <button onclick="trackSpecificOrder('${order.id}')" style="background: #ff5722; color: white; border: none; padding: 6px 15px; border-radius: 20px; font-size: 0.75rem; cursor: pointer; margin-top: 8px; width: auto;">
+            📍 Track This Order
+          </button>
+        </div>
+      `;
+    });
+    
+    resultDiv.innerHTML = html;
+  } catch (error) {
+    resultDiv.innerHTML = '<div style="background: #ffebee; padding: 15px; border-radius: 8px; color: #c62828;">❌ Server error. Please try again later.</div>';
+  }
+}
+
+function trackSpecificOrder(orderId) {
+  closeHistoryModal();
+  setTimeout(() => {
+    openTrackModal();
+    document.getElementById('trackOrderId').value = orderId;
+    trackOrder();
+  }, 300);
+}
 // Auto-open track modal if URL contains ?track=ORDERID
 window.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
