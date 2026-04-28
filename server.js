@@ -6,7 +6,7 @@ const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const { nanoid } = require('nanoid');
 const path = require('path');
-const { Pool } = require('pg');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -18,40 +18,31 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ==========================================
-// NEW: Cloud PostgreSQL Database Setup
+// JSON File Storage (Replaces PostgreSQL)
 // ==========================================
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // Required for Render/Neon
-  }
-});
+const ORDERS_FILE = path.join(__dirname, 'orders.json');
 
-// Initialize Database Tables
-const initDB = async () => {
+// Load orders from file if exists
+let orders = [];
+if (fs.existsSync(ORDERS_FILE)) {
   try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS orders (
-        id TEXT PRIMARY KEY,
-        status TEXT NOT NULL,
-        amount_inr INTEGER NOT NULL,
-        customer_name TEXT NOT NULL,
-        customer_phone TEXT NOT NULL,
-        customer_address TEXT NOT NULL,
-        items_json TEXT NOT NULL,
-        razorpay_order_id TEXT,
-        razorpay_payment_id TEXT,
-        payment_method TEXT DEFAULT 'ONLINE',
-        notes TEXT DEFAULT '',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    console.log('✅ Connected to Cloud PostgreSQL & Tables Verified');
+    const data = fs.readFileSync(ORDERS_FILE, 'utf8');
+    orders = JSON.parse(data);
+    console.log(`✅ Loaded ${orders.length} orders from file`);
   } catch (err) {
-    console.error('❌ Database initialization error:', err);
+    console.error('❌ Error loading orders file:', err);
+    orders = [];
   }
-};
-initDB();
+}
+
+// Helper to save orders to file
+function saveOrdersToFile() {
+  try {
+    fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2));
+  } catch (err) {
+    console.error('❌ Error saving orders to file:', err);
+  }
+}
 
 // ==========================================
 // Razorpay Setup
@@ -103,7 +94,7 @@ const products = [
   { id: 30, name: "Beans", price: 20, unit: "250g", category: "Vegetables", image: "https://imgs.search.brave.com/LanUejARpjqKqy7svNVTnGRcBUhZ63tgjMEsQwAkrMo/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9tLm1l/ZGlhLWFtYXpvbi5j/b20vaW1hZ2VzL0kv/NTFTMXY2R3ZYS0wu/anBn" },
   { id: 31, name: "Patta Gobhi", price: 15, unit: "500g", category: "Vegetables", image: "https://imgs.search.brave.com/BXuMBYPpB1LYARQLxbQDjwQpM0oDoVvhO3ebFf00Am0/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9tZWRp/YS5pc3RvY2twaG90/by5jb20vaWQvNTAz/ODcwNjYyL3Bob3Rv/L2ZyZXNoLXJpcGUt/Y2FiYmFnZS5qcGc_/cz02MTJ4NjEyJnc9/MCZrPTIwJmM9bnky/c0Fwbjg5Sk82Szhq/cEJ5WFU5RVVpOW5P/WG5Sa2l1U09PRHZu/dFVMTT0" },
   { id: 32, name: "Karela", price: 30, unit: "500g", category: "Vegetables", image: "https://imgs.search.brave.com/KI1lSo6OJVmS6wFcEXO56vWmhVwlrfQ_2CWtuvV8OdU/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9zdGF0/aWNpbWcuYW1hcnVq/YWxhLmNvbS9hc3Nl/dHMvaW1hZ2VzLzIw/MjQvMTAvMTUvYml0/dGVyLWdvdXJkLWth/cmVsYV85NDg3Nzlh/ZGRiOTg5ZmUyM2Qw/MmU3Y2U2MGNhNGUy/NS5qcGVnP3E9ODA" },
-  { id: 33, name: "Arbi", price: 30, unit: "500g", category: "Vegetables", image: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhUUR_JoeuI2j2FqVaTudqHvVtcktIogWyVpgnN5OBxDg9Nwnqk5O-lCOzSelPJW-Vv-EyNiw2laiEeVpwxXOE2Xe-B4V3HWRPfNqKQdv7fiW_-MHavbW7rOHG3vqm2wq4UTZ0PuWmchQQU/s700/1622573928975_resize_68.jpg" },
+  { id: 33, name: "Arbi", price: 30, unit: "500g", category: "Vegetables", image: "https://imgs.search.brave.com/UNuTlvC4HGEim4bhI8cM-cl_c_OouTaZ8ykw4BjuwVQ/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pbWFn/ZXMubmV3czE4LmNv/bS9pYm5sb2ttYXQv/dXBsb2Fkcy8yMDIy/LzA1LzE2NTM3OTU1/MjZfYXJiaS10YXJv/LXJvb3QtLTE2NTM3/OTU1MjN4Mi5qcGc_/aW09Rml0QW5kRmls/bD0oNTQwLDM2MCk" },
   { id: 34, name: "Parwal", price: 30, unit: "500g", category: "Vegetables", image: "https://imgs.search.brave.com/JIF5AbgSLoeiDXtXHFO2YtU0KFvpXWYl9j2wMWzYTAs/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly93d3cu/c2h1dHRlcnN0b2Nr/LmNvbS9pbWFnZS1w/aG90by9wb2ludGVk/LWdvdXJkLWJhbmds/YWRlc2hpLXZlZ2V0/YWJsZXMtMjYwbnct/MjI3MjY4MDMwNy5q/cGc" },
   { id: 35, name: "Tinda", price: 30, unit: "500g", category: "Vegetables", image: "https://imgs.search.brave.com/ZS2ikS7VSIAZc8iMCr_aDiCBW22shKFEE3krrYYU9uo/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9ncm93/c2VlZHMuY28uaW4v/d3AtY29udGVudC91/cGxvYWRzLzIwMjQv/MDgvVW50aXRsZWQt/ZGVzaWduLTIwMjQt/MDgtMTVUMTAyNjE5/LjQ1NC5qcGc" },
   { id: 36, name: "Gajar", price: 15, unit: "500g", category: "Vegetables", image: "https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=400" },
@@ -125,12 +116,13 @@ const calculateSecureTotal = (cartItems) => {
   cartItems.forEach(item => {
     const product = products.find(p => p.id === item.id);
     if (product) {
-      const qty = Math.max(1, parseInt(item.quantity) || 1);
-      total += product.price * qty;
+      const qty = Math.max(0.01, parseFloat(item.quantity) || 1);
+      const itemTotal = Math.round(product.price * qty * 100) / 100;
+      total += itemTotal;
       verifiedItems.push({ ...product, quantity: qty });
     }
   });
-  return { total, verifiedItems };
+  return { total: Math.round(total * 100) / 100, verifiedItems };
 };
 
 // ==========================================
@@ -153,10 +145,21 @@ app.post('/api/checkout/create-order', async (req, res) => {
 
     // Handle COD
     if (method === 'COD') {
-      await pool.query(
-        `INSERT INTO orders (id, status, amount_inr, customer_name, customer_phone, customer_address, items_json, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [localOrderId, 'COD_CONFIRMED', total, customer.name, customer.phone, customer.address, JSON.stringify(verifiedItems), 'COD', customerNotes]
-      );
+      orders.push({
+        id: localOrderId,
+        status: 'COD_CONFIRMED',
+        amount_inr: total,
+        customer_name: customer.name,
+        customer_phone: customer.phone,
+        customer_address: customer.address,
+        items_json: JSON.stringify(verifiedItems),
+        razorpay_order_id: null,
+        razorpay_payment_id: null,
+        payment_method: 'COD',
+        notes: customerNotes,
+        created_at: new Date().toISOString()
+      });
+      saveOrdersToFile();
       return res.json({ success: true, isCOD: true, localOrderId });
     }
 
@@ -170,10 +173,21 @@ app.post('/api/checkout/create-order', async (req, res) => {
       receipt: localOrderId 
     });
 
-    await pool.query(
-      `INSERT INTO orders (id, status, amount_inr, customer_name, customer_phone, customer_address, items_json, razorpay_order_id, payment_method, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [localOrderId, 'PENDING', total, customer.name, customer.phone, customer.address, JSON.stringify(verifiedItems), rpOrder.id, 'ONLINE', customerNotes]
-    );
+    orders.push({
+      id: localOrderId,
+      status: 'PENDING',
+      amount_inr: total,
+      customer_name: customer.name,
+      customer_phone: customer.phone,
+      customer_address: customer.address,
+      items_json: JSON.stringify(verifiedItems),
+      razorpay_order_id: rpOrder.id,
+      razorpay_payment_id: null,
+      payment_method: 'ONLINE',
+      notes: customerNotes,
+      created_at: new Date().toISOString()
+    });
+    saveOrdersToFile();
 
     res.json({ success: true, isCOD: false, localOrderId, key_id: process.env.RAZORPAY_KEY_ID, amount: rpOrder.amount, razorpay_order_id: rpOrder.id });
   } catch (err) {
@@ -188,7 +202,12 @@ app.post('/api/checkout/verify', async (req, res) => {
     const generatedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET).update(razorpay_order_id + "|" + razorpay_payment_id).digest('hex');
 
     if (generatedSignature === razorpay_signature) {
-      await pool.query(`UPDATE orders SET status = 'PAID', razorpay_payment_id = $1 WHERE id = $2`, [razorpay_payment_id, localOrderId]);
+      const order = orders.find(o => o.id === localOrderId);
+      if (order) {
+        order.status = 'PAID';
+        order.razorpay_payment_id = razorpay_payment_id;
+        saveOrdersToFile();
+      }
       res.json({ success: true, message: "Payment verified" });
     } else {
       res.status(400).json({ error: "Invalid signature" });
@@ -209,15 +228,16 @@ app.get('/api/admin/orders', async (req, res) => {
   }
 
   try {
-    const result = await pool.query(`SELECT * FROM orders ORDER BY created_at DESC`);
-    const formattedOrders = result.rows.map(order => ({
-      ...order,
-      items: JSON.parse(order.items_json)
-    }));
+    const formattedOrders = [...orders]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .map(order => ({
+        ...order,
+        items: JSON.parse(order.items_json)
+      }));
 
     res.json({ success: true, orders: formattedOrders });
   } catch (err) {
-    console.error("Admin Database Error:", err);
+    console.error("Admin Error:", err);
     res.status(500).json({ success: false, error: "Server Error" });
   }
 });
@@ -227,8 +247,7 @@ app.get('/api/track-order/:orderId', async (req, res) => {
   const orderId = req.params.orderId;
   
   try {
-    const result = await pool.query(`SELECT * FROM orders WHERE id = $1`, [orderId]);
-    const order = result.rows[0];
+    const order = orders.find(o => o.id === orderId);
     
     if (!order) {
       return res.status(404).json({ success: false, error: "Order not found" });
@@ -256,10 +275,12 @@ app.post('/api/update-order-status', async (req, res) => {
   }
   
   try {
-    const result = await pool.query(`UPDATE orders SET status = $1 WHERE id = $2`, [newStatus, orderId]);
-    if (result.rowCount === 0) {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
+    order.status = newStatus;
+    saveOrdersToFile();
     res.json({ success: true, message: "Status updated" });
   } catch (err) {
     console.error('Update status error:', err);
@@ -267,7 +288,7 @@ app.post('/api/update-order-status', async (req, res) => {
   }
 });
 
-// NEW: Manual Clear Orders Endpoint (Replaces the Cron Job)
+// Manual Clear Orders Endpoint
 app.post('/api/admin/clear-orders', async (req, res) => {
   const token = req.header('X-Admin-Token');
   if (token !== process.env.ADMIN_TOKEN) {
@@ -275,7 +296,8 @@ app.post('/api/admin/clear-orders', async (req, res) => {
   }
   
   try {
-    await pool.query(`DELETE FROM orders`);
+    orders.length = 0; // Clear the array
+    saveOrdersToFile(); // Save empty array to file
     console.log(`[${new Date().toLocaleString()}] SUCCESS: Orders cleared via API.`);
     res.json({ success: true, message: "Orders cleared successfully" });
   } catch (err) {
