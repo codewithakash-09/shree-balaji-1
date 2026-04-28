@@ -19,10 +19,6 @@ body { background: var(--bg); color: var(--text); padding-bottom: 80px; }
 .cart-toggle { background: transparent; border: none; color: white; font-size: 1.5rem; position: relative; cursor: pointer; }
 .badge { position: absolute; top: -8px; right: -8px; background: var(--secondary); font-size: 0.75rem; padding: 2px 6px; border-radius: 20px; font-weight: 600; }
 
-.fa-leaf:before {
-  content: "🥬";
-  font-style: normal;
-}
 /* Hero */
 .hero { text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #e8f5e9, #c8e6c9); }
 .hero h2 { color: var(--primary); font-size: 1.8rem; margin-bottom: 5px; }
@@ -180,3 +176,38 @@ footer { background: #333; color: white; text-align: center; padding: 20px; marg
 .btn-call { background: #4CAF50; }
 .btn-email { background: #EA4335; }
 .btn-linkedin { background: #0A66C2; }
+
+/* Quantity Selector in Product Cards */
+.qty-selector {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: auto;
+}
+
+.qty-dropdown {
+  padding: 8px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333;
+  background: white;
+  cursor: pointer;
+  min-width: 70px;
+  transition: border-color 0.3s;
+  font-family: 'Poppins', sans-serif;
+}
+
+.qty-dropdown:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.qty-dropdown:hover {
+  border-color: var(--primary);
+}
+/* Cart item delete button */
+.cart-item-details button[onclick*="removeFromCart"]:hover {
+  background: #ffcdd2 !important;
+}
