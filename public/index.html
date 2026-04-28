@@ -26,14 +26,17 @@
       </div>
     </div>
     <div class="nav-actions">
-      <button class="track-toggle" onclick="openTrackModal()">
-        <i class="fas fa-truck"></i>
-      </button>
-      <button class="cart-toggle" onclick="toggleCart()">
-        <i class="fas fa-shopping-cart"></i>
-        <span id="cartCount" class="badge">0</span>
-      </button>
-    </div>
+  <button class="track-toggle" onclick="openHistoryModal()" title="Order History">
+    <i class="fas fa-history"></i>
+  </button>
+  <button class="track-toggle" onclick="openTrackModal()">
+    <i class="fas fa-truck"></i>
+  </button>
+  <button class="cart-toggle" onclick="toggleCart()">
+    <i class="fas fa-shopping-cart"></i>
+    <span id="cartCount" class="badge">0</span>
+  </button>
+</div>
   </div>
   <div class="search-bar-container">
     <input type="text" id="searchInput" placeholder="Search vegetables, fruits, combos..." oninput="filterProducts()">
@@ -111,6 +114,21 @@
       <input type="text" id="trackOrderId" placeholder="Order ID (e.g., SBT_abc123xyz)" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem;">
       <button onclick="trackOrder()" class="btn-primary w-100" style="margin-top: 15px;">Track Order</button>
       <div id="trackResult" style="margin-top: 20px;"></div>
+    </div>
+  </div>
+</div>
+<!-- Order History Modal -->
+<div id="historyModal" class="modal">
+  <div class="modal-content" style="max-width: 500px;">
+    <div class="modal-header">
+      <h3><i class="fas fa-history"></i> Your Order History</h3>
+      <button onclick="closeHistoryModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="color: #666; margin-bottom: 15px;">Enter your phone number to view your past orders.</p>
+      <input type="tel" id="historyPhone" placeholder="Enter your 10-digit phone number" pattern="[0-9]{10}" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem;">
+      <button onclick="fetchOrderHistory()" class="btn-primary w-100" style="margin-top: 15px;">View Orders</button>
+      <div id="historyResult" style="margin-top: 20px;"></div>
     </div>
   </div>
 </div>
