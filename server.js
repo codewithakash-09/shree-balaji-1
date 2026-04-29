@@ -33,6 +33,14 @@ app.use(helmet({
   xContentTypeOptions: false,
   referrerPolicy: { policy: 'no-referrer' }
 }));
+// Allow Googlebot IP ranges (optional but helpful)
+app.use((req, res, next) => {
+  const userAgent = req.headers['user-agent'] || '';
+  if (userAgent.includes('Googlebot')) {
+    console.log('✅ Googlebot detected - allowing access');
+  }
+  next();
+});
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
