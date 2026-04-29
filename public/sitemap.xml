@@ -6,14 +6,4 @@
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
-  <url>
-    <loc>https://shreebalajitrader.co.in/?category=Fruits</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://shreebalajitrader.co.in/?category=Vegetables</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
 </urlset>
