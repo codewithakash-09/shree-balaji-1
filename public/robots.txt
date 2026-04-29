@@ -1,8 +1,22 @@
+# Allow all search engines to crawl
 User-agent: *
 Allow: /
-Allow: /api/products
+
+# Allow CSS and JS files
 Allow: /styles.css
 Allow: /app.js
+
+# Allow API endpoints needed for crawling
+Allow: /api/products
+
+# Allow images
 Allow: /images/
 
+# Block admin pages from search engines
+Disallow: /admin.html
+Disallow: /api/admin/
+Disallow: /api/stocks
+Disallow: /api/checkout/
+
+# Point to sitemap
 Sitemap: https://shreebalajitrader.co.in/sitemap.xml
