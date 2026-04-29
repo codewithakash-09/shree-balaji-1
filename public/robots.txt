@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://shreebalajitrader.co.in/sitemap.xml
