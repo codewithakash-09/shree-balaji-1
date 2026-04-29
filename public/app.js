@@ -15,6 +15,18 @@ const DOM = {
   customerForm: document.getElementById('customerForm'),
   payBtn: document.getElementById('payBtn')
 };
+
+// ==========================================
+// SEO: UPDATE PAGE TITLE FUNCTION
+// ==========================================
+function updatePageTitle(productName) {
+  if (productName) {
+    document.title = `${productName} - Shree Balaji Traders | Fresh Fruits & Vegetables Near Me`;
+  } else {
+    document.title = "Shree Balaji Traders | Fresh Fruits & Vegetables Near Me";
+  }
+}
+
 // Helper to get default quantity based on unit
 function getDefaultQty(unit) {
   if (unit.includes('kg')) return 1; // Default 1kg
@@ -40,6 +52,7 @@ function getQuantityOptions(unit) {
   }
   return [1, 2, 3];
 }
+
 // Create a simple fallback image as a constant
 const FALLBACK_IMAGE = 'data:image/svg+xml,' + encodeURIComponent(`
   <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
@@ -57,6 +70,8 @@ async function init() {
     products = data.products;
     renderProducts();
     updateCartUI();
+    // Set default title on page load
+    updatePageTitle();
   } catch (error) {
     console.error('Failed to load products:', error);
     DOM.productsContainer.innerHTML = `
@@ -72,11 +87,14 @@ function setCategory(cat, el) {
   document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
   if (el) el.classList.add('active');
   renderProducts();
+  // Update title when category changes
+  updatePageTitle(`${cat} Category`);
 }
 
 function filterProducts() {
   renderProducts();
 }
+
 function renderProducts() {
   const searchInput = document.getElementById('searchInput');
   if (!searchInput) return;
@@ -94,14 +112,18 @@ function renderProducts() {
         <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
         <p>No products found for "${searchTerm}"</p>
       </div>`;
+    // Update title for search results
+    if (searchTerm) {
+      updatePageTitle(`Search: ${searchTerm}`);
+    }
   } else {
-        DOM.productsContainer.innerHTML = filtered.map(p => {
+    DOM.productsContainer.innerHTML = filtered.map(p => {
       const options = getQuantityOptions(p.unit);
       const defaultQty = options[0];
       const defaultPrice = (p.price * defaultQty).toFixed(2);
       const isOutOfStock = p.stock === false;
       return `
-      <div class="product-card" style="${isOutOfStock ? 'opacity: 0.7;' : ''}">
+      <div class="product-card" data-product-name="${p.name}" data-product-id="${p.id}" style="${isOutOfStock ? 'opacity: 0.7;' : ''}">
         ${isOutOfStock ? '<div class="sold-out-badge">SOLD OUT</div>' : ''}
         <img src="${p.image}" 
              alt="${p.name}" 
@@ -137,7 +159,20 @@ function renderProducts() {
       </div>
     `}).join('');
   }
-  }
+  
+  // Add click event listeners to product cards for SEO title update
+  document.querySelectorAll('.product-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      // Don't trigger if clicking on button or select
+      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
+      const productName = card.getAttribute('data-product-name');
+      if (productName) {
+        updatePageTitle(productName);
+      }
+    });
+  });
+}
+
 function updateProductPrice(productId, unitPrice, selectedQty) {
   const priceElement = document.getElementById(`price_${productId}`);
   const unitElement = document.getElementById(`unit_${productId}`);
@@ -188,6 +223,7 @@ function updateProductPrice(productId, unitPrice, selectedQty) {
     unitElement.textContent = unitDisplay;
   }
 }
+
 function addToCart(id) {
   const qtySelect = document.getElementById(`qty_${id}`);
   const selectedQty = qtySelect ? parseFloat(qtySelect.value) : 1;
@@ -201,6 +237,7 @@ function addToCart(id) {
   saveCart(); 
   toggleCart(true);
 }
+
 function removeFromCart(id) {
   cart = cart.filter(item => item.id !== id);
   saveCart();
@@ -215,10 +252,12 @@ function updateQty(id, change) {
   if (item.quantity <= 0) cart = cart.filter(i => i.id !== id);
   saveCart();
 }
+
 function saveCart() { 
   localStorage.setItem('sbt_cart', JSON.stringify(cart)); 
   updateCartUI(); 
 }
+
 function updateCartUI() {
   let total = 0, count = 0, html = '';
   cart.forEach(item => {
@@ -275,6 +314,7 @@ function updateCartUI() {
   DOM.checkoutBtn.disabled = total < 200;
   DOM.minOrderWarning.innerText = total < 200 ? `Add ₹${(200 - total).toFixed(2)} more for min order` : "✅ Free Delivery!";
 }
+
 function toggleCart(forceOpen = false) {
   const isOpen = DOM.cartSidebar.classList.contains('open');
   if (isOpen && !forceOpen) { 
@@ -354,12 +394,57 @@ DOM.customerForm.addEventListener('submit', async (e) => {
 // Track Order Functions
 function openTrackModal() {
   document.getElementById('trackModal').classList.add('show');
+  // Update title for tracking page
+  updatePageTitle('Track Your Order');
 }
 
 function closeTrackModal() {
   document.getElementById('trackModal').classList.remove('show');
   document.getElementById('trackResult').innerHTML = '';
   document.getElementById('trackOrderId').value = '';
+  // Reset title when closing modal
+  updatePageTitle();
+}
+
+// Add this function to app.js
+async function retryPayment(orderId) {
+  try {
+    const response = await fetch('/api/checkout/retry-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ localOrderId: orderId })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      const options = {
+        key: data.key_id,
+        amount: data.amount,
+        currency: "INR",
+        name: "Shree Balaji Traders",
+        order_id: data.razorpay_order_id,
+        handler: async (response) => {
+          const verifyRes = await fetch('/api/checkout/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ localOrderId: orderId, ...response })
+          });
+          const verifyData = await verifyRes.json();
+          if (verifyData.success) {
+            window.location.href = `success.html?id=${orderId}`;
+          } else {
+            alert("Payment verification failed. Please contact support.");
+          }
+        }
+      };
+      new Razorpay(options).open();
+    } else {
+      alert(data.error || "Failed to retry payment");
+    }
+  } catch (err) {
+    alert("Something went wrong. Please contact support.");
+  }
 }
 
 async function trackOrder() {
@@ -419,6 +504,15 @@ async function trackOrder() {
           ${order.notes ? `<div style="margin-top: 10px; padding: 8px; background: #fff3e0; border-radius: 6px;"><strong>📝 Special Request:</strong> ${order.notes}</div>` : ''}
         </div>
         
+        ${order.status === 'PENDING' && order.payment_method === 'ONLINE' ? `
+          <div style="margin-top: 15px; text-align: center;">
+            <button onclick="retryPayment('${order.id}')" style="background: #ff5722; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; width: 100%;">
+              🔄 Retry Payment
+            </button>
+            <p style="font-size: 0.75rem; color: #666; margin-top: 8px;">Your payment failed or was cancelled. Click to try again.</p>
+          </div>
+        ` : ''}
+        
         <div style="margin-top: 15px; text-align: center; padding-top: 10px; border-top: 1px solid #ddd;">
           <a href="tel:+917398958319" style="display: inline-block; margin: 5px; padding: 8px 15px; background: #25d366; color: white; text-decoration: none; border-radius: 20px; font-size: 0.85rem;">
             💬 Chat on WhatsApp
@@ -433,15 +527,20 @@ async function trackOrder() {
     resultDiv.innerHTML = '<div style="background: #ffebee; padding: 15px; border-radius: 8px; color: #c62828;">❌ Server error. Please try again later.</div>';
   }
 }
+
 // Order History Functions
 function openHistoryModal() {
   document.getElementById('historyModal').classList.add('show');
+  // Update title for history page
+  updatePageTitle('Order History');
 }
 
 function closeHistoryModal() {
   document.getElementById('historyModal').classList.remove('show');
   document.getElementById('historyResult').innerHTML = '';
   document.getElementById('historyPhone').value = '';
+  // Reset title when closing modal
+  updatePageTitle();
 }
 
 async function fetchOrderHistory() {
@@ -512,6 +611,7 @@ function trackSpecificOrder(orderId) {
     trackOrder();
   }, 300);
 }
+
 // Auto-open track modal if URL contains ?track=ORDERID
 window.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
