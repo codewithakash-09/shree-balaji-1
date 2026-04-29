@@ -28,7 +28,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Security & Middleware
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({ 
+  contentSecurityPolicy: false,
+  xContentTypeOptions: false,
+  referrerPolicy: { policy: 'no-referrer' }
+}));
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -640,7 +644,12 @@ const calculateSecureTotal = (cartItems) => {
   });
   return { total: Math.round(total * 100) / 100, verifiedItems };
 };
-
+// Allow Googlebot to access sitemap
+app.use('/sitemap.xml', (req, res, next) => {
+  res.setHeader('Content-Type', 'application/xml');
+  res.setHeader('X-Robots-Tag', 'index,follow');
+  next();
+});
 // ==========================================
 // API Routes
 // ==========================================
