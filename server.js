@@ -8,6 +8,22 @@ const { nanoid } = require('nanoid');
 const path = require('path');
 const fs = require('fs');
 
+const requiredEnvVars = ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'ADMIN_TOKEN'];
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingVars.length > 0) {
+  console.error('❌ CRITICAL: Missing environment variables:', missingVars.join(', '));
+  console.error('Please create a .env file with:');
+  console.error(`
+RAZORPAY_KEY_ID=your_key_id
+RAZORPAY_KEY_SECRET=your_key_secret
+ADMIN_TOKEN=your_secure_admin_password
+PORT=5000
+  `);
+  process.exit(1);
+}
+
+console.log('✅ Environment variables loaded successfully');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -17,8 +33,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ==========================================
-// JSON File Storage (Replaces PostgreSQL)
 // ==========================================
 const ORDERS_FILE = path.join(__dirname, 'orders.json');
 
@@ -34,16 +48,25 @@ if (fs.existsSync(ORDERS_FILE)) {
     orders = [];
   }
 }
+const MAX_ORDERS = 5000;
 
-// Helper to save orders to file
+function cleanupOldOrders() {
+  if (orders.length > MAX_ORDERS) {
+    orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    orders = orders.slice(0, MAX_ORDERS);
+    console.log(`🧹 Cleaned up orders, keeping last ${MAX_ORDERS}`);
+  }
+}
+
+// Single save function with cleanup
 function saveOrdersToFile() {
+  cleanupOldOrders();  // Clean up before saving
   try {
     fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2));
   } catch (err) {
     console.error('❌ Error saving orders to file:', err);
   }
 }
-
 // ==========================================
 // Razorpay Setup
 // ==========================================
@@ -60,7 +83,7 @@ const razorpay = new Razorpay({
 // Product list
 const products = [
   // FRUITS (IDs 1-10)
-  { id: 1, name: "Apple Kinnaur (Big)", price: 180, unit: "kg", category: "Fruits", stock: false, image: "https://imgs.search.brave.com/_JzNpY0LelznPiCiLcw1KoYrQhfD6hJegbOuiR8kt2w/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly81Lmlt/aW1nLmNvbS9kYXRh/NS9TRUxMRVIvRGVm/YXVsdC8yMDIzLzEv/U08vSUcvSFovNDUx/MTcxOTIvZnJlc2gt/a2lubmF1ci1hcHBs/ZS01MDB4NTAwLmpw/ZWc" },
+  { id: 1, name: "Apple Kinnaur (Big)", price: 180, unit: "kg", category: "Fruits", stock: true, image: "https://imgs.search.brave.com/_JzNpY0LelznPiCiLcw1KoYrQhfD6hJegbOuiR8kt2w/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly81Lmlt/aW1nLmNvbS9kYXRh/NS9TRUxMRVIvRGVm/YXVsdC8yMDIzLzEv/U08vSUcvSFovNDUx/MTcxOTIvZnJlc2gt/a2lubmF1ci1hcHBs/ZS01MDB4NTAwLmpw/ZWc" },
   { id: 2, name: "Apple Kinnaur (Small)", price: 140, unit: "kg", category: "Fruits", stock: true, image: "https://imgs.search.brave.com/AN_n3PHlG2dZUI18HO0KpPVgxpW0_0C8N6JF91EUXlg/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pbWcu/ZXRpbWcuY29tL3Ro/dW1iL21zaWQtMTA0/NTUyOTIzLHdpZHRo/LTY0MCxoZWlnaHQt/NDgwLHJlc2l6ZW1v/ZGUtNzUsaW1nc2l6/ZS03MDE2OC9rYXNo/bWlyLWFwcGxlLmpw/Zw" },
   { id: 3, name: "Apple Kashmiri", price: 180, unit: "kg", category: "Fruits", stock: true, image: "https://imgs.search.brave.com/moHHeQcv8CZbiLWGIuF7UODBPqeFbi-k5KPt0HXLrWQ/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly90NC5m/dGNkbi5uZXQvanBn/LzA2Lzk5LzEzLzA3/LzM2MF9GXzY5OTEz/MDcwN190T2lDdWpI/ek52cEppalN5Q3Fk/dE9XM01iQTV5TmJZ/US5qcGc" },
   { id: 4, name: "Grapes", price: 50, unit: "250g", category: "Fruits", stock: true, image: "https://imgs.search.brave.com/TCRyjP9Y4jHAskRxkDGFg62zVrrVBiX9rvq_RoBhtuU/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pLnBp/bmltZy5jb20vb3Jp/Z2luYWxzL2ViLzQ3/LzBlL2ViNDcwZWZi/ODdmMzYyMjM0NWNm/YTRkYmU0NTFjOTFm/LmpwZw" },
@@ -109,7 +132,500 @@ const products = [
   { id: 45, name: "Kheera (Desi)", price: 30, unit: "kg", category: "Vegetables", stock: true, image: "https://imgs.search.brave.com/ZaMKhk0PAl5oEfSso13Zpk8qFWZbzhBx_ngygRZBMC4/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly93d3cu/MW1nLmNvbS9oaS9w/YXRhbmphbGkvd3At/Y29udGVudC91cGxv/YWRzLzIwMTkvMDEv/S2hlZXJhLmpwZw" },
   { id: 46, name: "Baigan (Long)", price: 30, unit: "500g", category: "Vegetables", stock: true, image: "https://5.imimg.com/data5/AC/PO/MY-8825611/bottle-eggplant-baigan-bharta-500x500.png" }
 ];
+// ==========================================
+// STOCK MANAGEMENT SYSTEM
+// ==========================================
 
+// Stock limits for products (in kg or units as per product unit)
+// Update these daily as needed
+const stockLimits = {
+  // FRUITS
+  1: { limit: 10, unit: 'kg' },      // Apple Kinnaur (Big) - 10kg
+  2: { limit: 15, unit: 'kg' },      // Apple Kinnaur (Small) - 15kg
+  3: { limit: 12, unit: 'kg' },      // Apple Kashmiri - 12kg
+  4: { limit: 20, unit: '250g' },    // Grapes - 20 packs of 250g
+  5: { limit: 50, unit: '12pc' },    // Banana - 50 dozen (600 pieces)
+  6: { limit: 8, unit: 'kg' },       // Pomegranate - 8kg
+  7: { limit: 30, unit: 'kg' },      // Watermelon - 30kg
+  8: { limit: 15, unit: 'kg' },      // Kharbuja - 15kg
+  9: { limit: 10, unit: '500g' },    // Mausami - 10 packs
+  10: { limit: 20, unit: 'kg' },     // Mango - 20kg
+  
+  // VEGETABLES
+  11: { limit: 50, unit: 'kg' },     // Aalu Chipsona - 50kg
+  12: { limit: 40, unit: 'kg' },     // Aalu 37-97 - 40kg
+  13: { limit: 30, unit: 'kg' },     // Pyaj Quality A - 30kg
+  14: { limit: 25, unit: 'kg' },     // Pyaj Quality B - 25kg
+  15: { limit: 20, unit: 'kg' },     // Tamatar - 20kg
+  16: { limit: 15, unit: '250g' },   // Dhaniya - 15 bunches
+  17: { limit: 10, unit: '100g' },   // Podina - 10 packs
+  18: { limit: 12, unit: '250g' },   // Hari Mirch - 12 packs
+  19: { limit: 8, unit: '100g' },    // Neebu - 8 packs
+  20: { limit: 10, unit: '100g' },   // Lahsun - 10 packs
+  21: { limit: 10, unit: '250g' },   // Adarak - 10 packs
+  22: { limit: 15, unit: '500g' },   // Shimla Mirch Green - 15 packs
+  23: { limit: 10, unit: '250g' },   // Shimla Mirch Red - 10 packs
+  24: { limit: 20, unit: 'pkt' },    // Baby Corn - 20 packets
+  25: { limit: 12, unit: '500g' },   // Tori - 12 packs
+  26: { limit: 15, unit: '500g' },   // Bhindi - 15 packs
+  27: { limit: 20, unit: 'kg' },     // Lauki - 20kg
+  28: { limit: 12, unit: '500g' },   // Kaddu - 12 packs
+  29: { limit: 10, unit: '500g' },   // Chukander - 10 packs
+  30: { limit: 15, unit: '250g' },   // Beans - 15 packs
+  31: { limit: 12, unit: '500g' },   // Patta Gobhi - 12 packs
+  32: { limit: 10, unit: '500g' },   // Karela - 10 packs
+  33: { limit: 8, unit: '500g' },    // Arbi - 8 packs
+  34: { limit: 8, unit: '500g' },    // Parwal - 8 packs
+  35: { limit: 10, unit: '500g' },   // Tinda - 10 packs
+  36: { limit: 15, unit: '500g' },   // Gajar - 15 packs
+  37: { limit: 12, unit: '250g' },   // Matar - 12 packs
+  38: { limit: 10, unit: '250g' },   // Kacha Aam - 10 packs
+  39: { limit: 8, unit: '500g' },    // Kacha Kela - 8 packs
+  40: { limit: 15, unit: 'kg' },     // Kheera Hybrid - 15kg
+  41: { limit: 8, unit: '250g' },    // Shimla Mirch Yellow - 8 packs
+  42: { limit: 10, unit: '500g' },   // Phool Gobhi - 10 packs
+  43: { limit: 8, unit: '500g' },    // Broccoli - 8 packs
+  44: { limit: 12, unit: '500g' },   // Desi Gajar - 12 packs
+  45: { limit: 10, unit: 'kg' },     // Kheera Desi - 10kg
+  46: { limit: 10, unit: '500g' },   // Baigan - 10 packs
+};
+
+// Track current stock sold (from orders)
+// This will be calculated on server start
+let stockSold = {};
+
+// Initialize stock sold from existing orders
+function initializeStockSold() {
+  stockSold = {};
+  
+  // Process ALL DELIVERED orders (not just those with stock_deducted flag)
+  const deliveredOrders = orders.filter(o => o.status === 'DELIVERED');
+  
+  deliveredOrders.forEach(order => {
+    const items = JSON.parse(order.items_json);
+    items.forEach(item => {
+      const productId = item.id;
+      const quantity = item.quantity;
+      
+      if (!stockSold[productId]) {
+        stockSold[productId] = 0;
+      }
+      stockSold[productId] += quantity;
+      
+      // Also fix the flag if it's false
+      if (!order.stock_deducted) {
+        order.stock_deducted = true;
+      }
+    });
+  });
+  
+  saveOrdersToFile(); // Save fixed flags
+  console.log('✅ Stock sold initialized from DELIVERED orders:', stockSold);
+}
+// ==========================================
+// PRODUCT MANAGEMENT APIs (ADMIN ONLY)
+// ==========================================
+
+const PRODUCTS_FILE = path.join(__dirname, 'products.json');
+
+// Save products to file
+function saveProductsToFile() {
+  try {
+    fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2));
+    console.log('✅ Products saved to file');
+  } catch (err) {
+    console.error('❌ Error saving products:', err);
+  }
+}
+
+// Load products from file (call this at startup)
+function loadProductsFromFile() {
+  if (fs.existsSync(PRODUCTS_FILE)) {
+    try {
+      const data = fs.readFileSync(PRODUCTS_FILE, 'utf8');
+      const savedProducts = JSON.parse(data);
+      // DON'T clear products array - just update existing products
+      savedProducts.forEach(savedProduct => {
+        const existingProduct = products.find(p => p.id === savedProduct.id);
+        if (existingProduct) {
+          // Only update price and other editable fields, keep stock status
+          existingProduct.price = savedProduct.price;
+          existingProduct.name = savedProduct.name;
+          existingProduct.unit = savedProduct.unit;
+          existingProduct.category = savedProduct.category;
+          existingProduct.image = savedProduct.image;
+        } else {
+          // This is a new product added via admin
+          products.push(savedProduct);
+        }
+      });
+      console.log(`✅ Loaded product prices from file`);
+      return true;
+    } catch (err) {
+      console.error('❌ Error loading products:', err);
+    }
+  }
+  return false;
+}
+
+// Get all products (with admin details)
+app.get('/api/admin/products', async (req, res) => {
+  const token = req.header('X-Admin-Token');
+  if (token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+  
+  res.json({ success: true, products: products });
+});
+
+// Update product price
+app.post('/api/admin/update-price', async (req, res) => {
+  const token = req.header('X-Admin-Token');
+  if (token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+  
+  const { productId, newPrice } = req.body;
+  const product = products.find(p => p.id === productId);
+  
+  if (!product) {
+    return res.status(404).json({ success: false, error: "Product not found" });
+  }
+  
+  product.price = newPrice;
+  saveProductsToFile();
+  updateProductStocks(); // Re-evaluate stock status
+  
+  res.json({ success: true, message: "Price updated successfully", product });
+});
+
+// Update product stock limit
+app.post('/api/admin/update-stock-limit', async (req, res) => {
+  const token = req.header('X-Admin-Token');
+  if (token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+  
+  const { productId, newLimit } = req.body;
+  
+  if (!stockLimits[productId]) {
+    return res.status(404).json({ success: false, error: "Product not found" });
+  }
+  
+  stockLimits[productId].limit = newLimit;
+  updateProductStocks();
+  saveStockToFile();
+  
+  res.json({ success: true, message: "Stock limit updated" });
+});
+
+// Add new product
+app.post('/api/admin/add-product', async (req, res) => {
+  const token = req.header('X-Admin-Token');
+  if (token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+  
+  const { name, price, unit, category, image, stockLimit } = req.body;
+  
+  // Find max ID
+  const maxId = Math.max(...products.map(p => p.id), 0);
+  const newId = maxId + 1;
+  
+  const newProduct = {
+    id: newId,
+    name: name,
+    price: parseFloat(price),
+    unit: unit,
+    category: category,
+    stock: true,
+    image: image || "https://imgs.search.brave.com/moHHeQcv8CZbiLWGIuF7UODBPqeFbi-k5KPt0HXLrWQ/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly90NC5m/dGNkbi5uZXQvanBn/LzA2Lzk5LzEzLzA3/LzM2MF9GXzY5OTEz/MDcwN190T2lDdWpI/ek52cEppalN5Q3Fk/dE9XM01iQTV5TmJZ/US5qcGc"
+  };
+  
+  products.push(newProduct);
+  
+  // Add stock limit if provided
+  if (stockLimit && stockLimit > 0) {
+    stockLimits[newId] = { limit: parseFloat(stockLimit), unit: unit };
+  }
+  
+  saveProductsToFile();
+  updateProductStocks();
+  saveStockToFile();
+  
+  res.json({ success: true, message: "Product added successfully", product: newProduct });
+});
+
+// Update product details
+app.post('/api/admin/update-product', async (req, res) => {
+  const token = req.header('X-Admin-Token');
+  if (token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+  
+  const { productId, name, price, unit, category, image } = req.body;
+  const product = products.find(p => p.id === productId);
+  
+  if (!product) {
+    return res.status(404).json({ success: false, error: "Product not found" });
+  }
+  
+  if (name) product.name = name;
+  if (price) product.price = parseFloat(price);
+  if (unit) product.unit = unit;
+  if (category) product.category = category;
+  if (image) product.image = image;
+  
+  saveProductsToFile();
+  
+  res.json({ success: true, message: "Product updated successfully", product });
+});
+
+// Delete product
+app.post('/api/admin/delete-product', async (req, res) => {
+  const token = req.header('X-Admin-Token');
+  if (token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+  
+  const { productId } = req.body;
+  const index = products.findIndex(p => p.id === productId);
+  
+  if (index === -1) {
+    return res.status(404).json({ success: false, error: "Product not found" });
+  }
+  
+  products.splice(index, 1);
+  delete stockLimits[productId];
+  
+  saveProductsToFile();
+  saveStockToFile();
+  
+  res.json({ success: true, message: "Product deleted successfully" });
+});
+// Get available stock for a product
+function getAvailableStock(productId) {
+  const limit = stockLimits[productId];
+  if (!limit) return null; // No limit set (unlimited stock)
+  
+  const sold = stockSold[productId] || 0;
+  const available = Math.max(0, limit.limit - sold);
+  return available;
+}
+
+// Update product stocks based on current stock sold
+function updateProductStocks() {
+  products.forEach(product => {
+    const available = getAvailableStock(product.id);
+    
+    if (available !== null) {
+      // If stock limit exists and available stock is 0 or less
+      product.stock = available > 0;
+    } else {
+      // No stock limit, always in stock
+      product.stock = true;
+    }
+  });
+}
+
+// Deduct stock when order is confirmed
+function deductStockOnDelivery(orderId) {
+  console.log(`🔍 Attempting to deduct stock for order: ${orderId}`);
+  const order = orders.find(o => o.id === orderId);
+  if (!order) {
+    console.log(`❌ Order not found: ${orderId}`);
+    return false;
+  }
+  
+  console.log(`Order status: ${order.status}, stock_deducted: ${order.stock_deducted}`);
+  
+  if (!order.stock_deducted) {
+    const items = JSON.parse(order.items_json);
+    console.log(`Items in order:`, items);
+    let stockUpdated = false;
+    
+    items.forEach(item => {
+      const productId = item.id;
+      const quantity = item.quantity;
+      console.log(`Processing product ${productId}, quantity: ${quantity}`);
+      
+      if (stockLimits[productId]) {
+        if (!stockSold[productId]) {
+          stockSold[productId] = 0;
+        }
+        stockSold[productId] += quantity;
+        stockUpdated = true;
+        console.log(`Stock updated for product ${productId}: now ${stockSold[productId]}`);
+      }
+    });
+    
+    if (stockUpdated) {
+      order.stock_deducted = true;
+      updateProductStocks();
+      saveStockToFile();
+      saveOrdersToFile();
+      console.log(`✅ Stock deducted for order: ${orderId}`);
+      return true;
+    }
+  }
+  return false;
+}
+
+// Reverse stock deduction when order is cancelled/returned
+function reverseStockDeduction(orderId) {
+  const order = orders.find(o => o.id === orderId);
+  if (!order) return false;
+  
+  if (order.stock_deducted) {
+    const items = JSON.parse(order.items_json);
+    
+    items.forEach(item => {
+      const productId = item.id;
+      const quantity = item.quantity;
+      
+      if (stockSold[productId]) {
+        stockSold[productId] = Math.max(0, stockSold[productId] - quantity);
+      }
+    });
+    
+    order.stock_deducted = false;
+    updateProductStocks();
+    saveStockToFile();
+    saveOrdersToFile();
+    console.log(`🔄 Stock deduction reversed for order: ${orderId}`);
+    return true;
+  }
+  return false;
+}
+
+// Save stock data to file (persist across server restarts)
+const STOCK_FILE = path.join(__dirname, 'stock.json');
+
+function saveStockToFile() {
+  try {
+    const stockData = {
+      stockSold: stockSold,
+      lastUpdated: new Date().toISOString()
+    };
+    fs.writeFileSync(STOCK_FILE, JSON.stringify(stockData, null, 2));
+  } catch (err) {
+    console.error('❌ Error saving stock data:', err);
+  }
+}
+
+function loadStockFromFile() {
+  if (fs.existsSync(STOCK_FILE)) {
+    try {
+      const data = fs.readFileSync(STOCK_FILE, 'utf8');
+      const stockData = JSON.parse(data);
+      stockSold = stockData.stockSold || {};
+      console.log('✅ Stock data loaded from file');
+    } catch (err) {
+      console.error('❌ Error loading stock data:', err);
+    }
+  }
+}
+
+// Reset stock for a product (admin API)
+function resetProductStock(productId, newLimit) {
+  if (stockLimits[productId]) {
+    stockLimits[productId].limit = newLimit;
+  }
+  // Reset sold count for this product
+  stockSold[productId] = 0;
+  updateProductStocks();
+  saveStockToFile();
+  console.log(`🔄 Stock reset for product ${productId}: new limit ${newLimit}`);
+}
+
+// Call this after loading orders
+loadStockFromFile();
+loadProductsFromFile();
+initializeStockSold();
+updateProductStocks();
+// Add after loading orders (around line 30)
+function migrateOrdersAddStockField() {
+  let updated = false;
+  orders.forEach(order => {
+    if (order.stock_deducted === undefined) {
+      order.stock_deducted = false;
+      updated = true;
+    }
+  });
+  if (updated) {
+    saveOrdersToFile();
+    console.log('✅ Migrated orders: Added stock_deducted field');
+  }
+}
+
+// Call this after loading orders
+migrateOrdersAddStockField();
+// ==========================================
+// STOCK MANAGEMENT APIs
+// ==========================================
+
+// Get all product stocks
+app.get('/api/stocks', async (req, res) => {
+  const token = req.header('X-Admin-Token');
+  
+  if (token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+  
+  const stockInfo = products.map(product => {
+    const limit = stockLimits[product.id];
+    const sold = stockSold[product.id] || 0;
+    const available = limit ? Math.max(0, limit.limit - sold) : null;
+    
+    return {
+      id: product.id,
+      name: product.name,
+      unit: product.unit,
+      limit: limit ? limit.limit : 'Unlimited',
+      sold: sold,
+      available: available,
+      inStock: product.stock
+    };
+  });
+  
+  res.json({ success: true, stocks: stockInfo });
+});
+
+// Update stock limit (Admin only)
+app.post('/api/admin/update-stock', async (req, res) => {
+  const token = req.header('X-Admin-Token');
+  const { productId, newLimit } = req.body;
+  
+  if (token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+  
+  if (!stockLimits[productId]) {
+    return res.status(404).json({ success: false, error: "Product not found" });
+  }
+  
+  resetProductStock(productId, newLimit);
+  res.json({ success: true, message: "Stock limit updated" });
+});
+
+// Reset all stocks (Admin only - for daily reset)
+app.post('/api/admin/reset-all-stocks', async (req, res) => {
+  const token = req.header('X-Admin-Token');
+  
+  if (token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+  
+  // Reset all stock sold
+  stockSold = {};
+  
+  // Re-initialize and update
+  initializeStockSold();
+  updateProductStocks();
+  saveStockToFile();
+  
+  res.json({ success: true, message: "All stocks reset successfully" });
+});
 const calculateSecureTotal = (cartItems) => {
   let total = 0;
   const verifiedItems = [];
@@ -136,6 +652,16 @@ app.post('/api/checkout/create-order', async (req, res) => {
     const { customer, items, paymentMethod, notes } = req.body;
     
     if (!items || items.length === 0) return res.status(400).json({ error: "Cart is empty" });
+    // Check stock availability for all items
+for (const item of items) {
+  const available = getAvailableStock(item.id);
+  if (available !== null && item.quantity > available) {
+    const product = products.find(p => p.id === item.id);
+    return res.status(400).json({ 
+      error: `${product.name} - Only ${available} ${product.unit} available in stock` 
+    });
+  }
+}
     const { total, verifiedItems } = calculateSecureTotal(items);
     if (total < 200) return res.status(400).json({ error: "Minimum order is ₹200" });
 
@@ -157,6 +683,7 @@ app.post('/api/checkout/create-order', async (req, res) => {
         razorpay_payment_id: null,
         payment_method: 'COD',
         notes: customerNotes,
+        stock_deducted: false,
         created_at: new Date().toISOString()
       });
       saveOrdersToFile();
@@ -185,6 +712,7 @@ app.post('/api/checkout/create-order', async (req, res) => {
       razorpay_payment_id: null,
       payment_method: 'ONLINE',
       notes: customerNotes,
+      stock_deducted: false, // New field to track if stock has been deducted
       created_at: new Date().toISOString()
     });
     saveOrdersToFile();
@@ -203,9 +731,13 @@ app.post('/api/checkout/verify', async (req, res) => {
 
     if (generatedSignature === razorpay_signature) {
       const order = orders.find(o => o.id === localOrderId);
-      if (order) {
+      if (order && order.status === 'PENDING') {
         order.status = 'PAID';
         order.razorpay_payment_id = razorpay_payment_id;
+        
+        // Deduct stock immediately for ONLINE payment
+        deductStockOnDelivery(localOrderId);
+        
         saveOrdersToFile();
       }
       res.json({ success: true, message: "Payment verified" });
@@ -215,6 +747,86 @@ app.post('/api/checkout/verify', async (req, res) => {
   } catch (err) {
     console.error('Verification error:', err);
     res.status(500).json({ error: "Verification failed" });
+  }
+});
+// Add this after your verify endpoint (around line 150)
+app.post('/api/checkout/retry-payment', async (req, res) => {
+  try {
+    const { localOrderId } = req.body;
+    
+    const order = orders.find(o => o.id === localOrderId);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    
+    // Only allow retry for PENDING orders
+    if (order.status !== 'PENDING') {
+      return res.status(400).json({ error: "Order cannot be retried" });
+    }
+    
+    const amountInPaise = Math.floor(order.amount_inr * 100);
+    
+    const newRpOrder = await razorpay.orders.create({ 
+      amount: amountInPaise, 
+      currency: "INR", 
+      receipt: order.id 
+    });
+    
+    // Update order with new Razorpay order ID
+    order.razorpay_order_id = newRpOrder.id;
+    order.razorpay_payment_id = null;
+    saveOrdersToFile();
+    
+    res.json({ 
+      success: true, 
+      key_id: process.env.RAZORPAY_KEY_ID,
+      razorpay_order_id: newRpOrder.id,
+      amount: newRpOrder.amount
+    });
+  } catch (err) {
+    console.error('Payment retry error:', err);
+    res.status(500).json({ error: "Failed to retry payment" });
+  }
+});
+
+// ==========================================
+// WEBHOOK FOR PAYMENT STATUS (RECOMMENDED)
+app.post('/api/razorpay-webhook', express.raw({type: 'application/json'}), async (req, res) => {
+  try {
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const signature = req.headers['x-razorpay-signature'];
+    
+    if (webhookSecret && signature) {
+      const expectedSignature = crypto
+        .createHmac('sha256', webhookSecret)
+        .update(req.body.toString())
+        .digest('hex');
+      
+      if (expectedSignature !== signature) {
+        return res.status(401).json({ error: "Invalid webhook signature" });
+      }
+    }
+    
+    const payload = JSON.parse(req.body.toString());
+    const { event, payload: eventPayload } = payload;
+    
+    if (event === 'payment.captured') {
+      const paymentId = eventPayload.payment.entity.id;
+      const orderId = eventPayload.payment.entity.order_id;
+      
+      const order = orders.find(o => o.razorpay_order_id === orderId);
+      if (order && order.status === 'PENDING') {
+        order.status = 'PAID';
+        order.razorpay_payment_id = paymentId;
+        saveOrdersToFile();
+        console.log(`✅ Webhook: Order ${order.id} marked as PAID`);
+      }
+    }
+    
+    res.json({ received: true });
+  } catch (err) {
+    console.error('Webhook error:', err);
+    res.status(500).json({ error: "Webhook processing failed" });
   }
 });
 
@@ -298,7 +910,27 @@ app.post('/api/update-order-status', async (req, res) => {
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
+    
+    const oldStatus = order.status;
     order.status = newStatus;
+    
+    // Handle stock deduction based on status change
+    
+    // Case 1: ONLINE payment - deduct when status changes from PENDING to PAID
+    if (order.payment_method === 'ONLINE' && oldStatus === 'PENDING' && newStatus === 'PAID') {
+      deductStockOnDelivery(orderId); // Reuse same function
+    }
+    
+    // Case 2: COD - deduct when status changes from COD_CONFIRMED to DELIVERED
+    if (order.payment_method === 'COD' && oldStatus === 'COD_CONFIRMED' && newStatus === 'DELIVERED') {
+      deductStockOnDelivery(orderId);
+    }
+    
+    // Case 3: If order is cancelled/returned from DELIVERED status
+    if (order.stock_deducted && newStatus !== 'DELIVERED') {
+      reverseStockDeduction(orderId);
+    }
+    
     saveOrdersToFile();
     res.json({ success: true, message: "Status updated" });
   } catch (err) {
