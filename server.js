@@ -25,6 +25,35 @@ PORT=5000
 
 console.log('✅ Environment variables loaded successfully');
 const app = express();
+// Add this near the top of your server.js, after 'const app = express();'
+
+// --- Global Concurrent Request Limiter ---
+let activeRequests = 0;
+const MAX_CONCURRENT_REQUESTS = 8; // A safe limit for your 512MB/0.1 CPU instance
+
+app.use((req, res, next) => {
+  // Don't limit requests for static files
+  if (req.path.startsWith('/public') || req.path === '/styles.css' || req.path === '/app.js') {
+    return next();
+  }
+
+  if (activeRequests >= MAX_CONCURRENT_REQUESTS) {
+    console.warn(`⚠️ Request limit reached. Active: ${activeRequests}. Rejecting request to ${req.path}.`);
+    return res.status(503).json({ 
+      error: "Server is busy. Please try again in a few seconds." 
+    });
+  }
+  
+  activeRequests++;
+  console.log(`📊 Active requests: ${activeRequests}`);
+  
+  res.on('finish', () => {
+    activeRequests--;
+    console.log(`📊 Active requests: ${activeRequests}`);
+  });
+  next();
+});
+// --- End Concurrent Request Limiter ---
 const PORT = process.env.PORT || 5000;
 
 // Security & Middleware
@@ -33,14 +62,6 @@ app.use(helmet({
   xContentTypeOptions: false,
   referrerPolicy: { policy: 'no-referrer' }
 }));
-// Allow Googlebot IP ranges (optional but helpful)
-app.use((req, res, next) => {
-  const userAgent = req.headers['user-agent'] || '';
-  if (userAgent.includes('Googlebot')) {
-    console.log('✅ Googlebot detected - allowing access');
-  }
-  next();
-});
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
