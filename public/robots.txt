@@ -1,3 +1,8 @@
 User-agent: *
 Allow: /
+Allow: /api/products
+Allow: /styles.css
+Allow: /app.js
+Allow: /images/
+
 Sitemap: https://shreebalajitrader.co.in/sitemap.xml
