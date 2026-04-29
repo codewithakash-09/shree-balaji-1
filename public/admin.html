@@ -3,12 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Add after the other meta tags -->
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥬</text></svg>">
-
-<!-- Preconnect to external resources for faster loading -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥬</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <title>Admin Panel - Shree Balaji Traders</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
@@ -22,16 +19,56 @@
     input, button { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; }
     button { background: #2e7d32; color: white; border: none; cursor: pointer; font-weight: 600; }
     select { padding: 8px; border-radius: 6px; border: 1px solid #ddd; }
+    .admin-section { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+    .admin-section h3 { margin-bottom: 10px; }
+    .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+    .btn-sm { width: auto; padding: 8px 20px; margin: 0; }
+    .btn-blue { background: #2196f3; }
+    .btn-orange { background: #ff5722; }
+    .btn-green { background: #4caf50; }
+    .stock-table, .products-table { width: 100%; border-collapse: collapse; }
+    .stock-table th, .products-table th { background: #2e7d32; color: white; padding: 10px; text-align: left; }
+    .stock-table td, .products-table td { padding: 8px; border-bottom: 1px solid #ddd; }
+    .in-stock { background: #4caf50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; }
+    .out-stock { background: #f44336; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; }
+    .available-high { color: #2e7d32; font-weight: bold; }
+    .available-low { color: #ff9800; font-weight: bold; }
+    .available-none { color: #f44336; font-weight: bold; }
   </style>
 </head>
 <body>
+
+  <!-- LOGIN SCREEN -->
   <div id="loginScreen" class="login-form">
     <h2>Admin Login</h2>
     <input type="password" id="adminKey" placeholder="Enter Admin Key">
     <button onclick="login()">Login</button>
   </div>
 
+  <!-- ADMIN PANEL (Hidden until login) -->
   <div id="adminPanel" style="display:none;">
+    
+    <!-- Stock Management Section -->
+    <div class="admin-section">
+      <h3>📦 Stock Management</h3>
+      <div class="btn-group">
+        <button onclick="fetchStocks()" class="btn-sm btn-blue">Refresh Stocks</button>
+        <button onclick="resetAllStocks()" class="btn-sm btn-orange">Reset All Stocks (Daily)</button>
+      </div>
+      <div id="stockTable" style="max-height: 400px; overflow-y: auto;"></div>
+    </div>
+
+    <!-- Product Management Section -->
+    <div class="admin-section">
+      <h3>🛍️ Product Management</h3>
+      <div class="btn-group">
+        <button onclick="showAddProductForm()" class="btn-sm btn-green">+ Add New Product</button>
+        <button onclick="fetchProducts()" class="btn-sm btn-blue">Refresh Products</button>
+      </div>
+      <div id="productsTable" style="max-height: 500px; overflow-y: auto;"></div>
+    </div>
+
+    <!-- Orders Section -->
     <div class="container">
       <div class="header">
         <h1>Admin Panel - Shree Balaji Traders</h1>
@@ -41,14 +78,71 @@
     </div>
   </div>
 
+  <!-- Add/Edit Product Modal (Hidden by default) -->
+  <div id="productModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; align-items: center; justify-content: center;">
+    <div style="background: white; max-width: 500px; width: 90%; border-radius: 12px; padding: 20px; max-height: 90%; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+        <h3 id="productModalTitle">Add New Product</h3>
+        <button onclick="closeProductModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+      </div>
+      <form id="productForm">
+        <input type="hidden" id="editProductId">
+        <div style="margin-bottom: 12px;">
+          <label>Product Name *</label>
+          <input type="text" id="productName" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label>Price (₹) *</label>
+          <input type="number" step="0.01" id="productPrice" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label>Unit *</label>
+          <select id="productUnit" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+            <option value="kg">kg</option>
+            <option value="500g">500g</option>
+            <option value="250g">250g</option>
+            <option value="100g">100g</option>
+            <option value="12pc">12pc (Banana dozen)</option>
+            <option value="pkt">pkt (Packet)</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label>Category *</label>
+          <select id="productCategory" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+            <option value="Fruits">Fruits</option>
+            <option value="Vegetables">Vegetables</option>
+            <option value="Combo">Combo</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label>Stock Limit (optional, leave empty for unlimited)</label>
+          <input type="number" step="0.01" id="productStockLimit" placeholder="e.g., 10" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label>Image URL (optional)</label>
+          <input type="text" id="productImage" placeholder="https://..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+        </div>
+        <button type="submit" style="background: #2e7d32; color: white; padding: 10px; border: none; border-radius: 6px; width: 100%; font-weight: bold;">Save Product</button>
+      </form>
+    </div>
+  </div>
+
   <script>
     let adminToken = '';
 
+    // ==========================================
+    // LOGIN FUNCTION
+    // ==========================================
     function login() {
       adminToken = document.getElementById('adminKey').value;
       fetchOrders();
+      fetchStocks();
+      fetchProducts();
     }
 
+    // ==========================================
+    // ORDER MANAGEMENT
+    // ==========================================
     async function fetchOrders() {
       try {
         const res = await fetch('/api/admin/orders', {
@@ -99,7 +193,25 @@
           <div style="margin-top: 15px;">
             <strong>Items:</strong>
             <ul>
-              ${order.items.map(item => `<li>${item.name} x${item.quantity} - ₹${item.price * item.quantity}</li>`).join('')}
+              ${order.items.map(item => {
+                let qtyDisplay = '';
+                if (item.unit === 'kg') {
+                  qtyDisplay = item.quantity >= 1 ? `${item.quantity} kg` : `${item.quantity * 1000}g`;
+                } else if (item.unit === '500g') {
+                  qtyDisplay = `${item.quantity * 500}g`;
+                } else if (item.unit === '250g') {
+                  qtyDisplay = `${item.quantity * 250}g`;
+                } else if (item.unit === '100g') {
+                  qtyDisplay = `${item.quantity * 100}g`;
+                } else if (item.unit === '12pc' && item.quantity === 0.5) {
+                  qtyDisplay = '6 pieces';
+                } else if (item.unit === '12pc') {
+                  qtyDisplay = `${item.quantity * 12} pieces`;
+                } else {
+                  qtyDisplay = `${item.quantity} ${item.unit}`;
+                }
+                return `<li>${item.name} - ${qtyDisplay} - ₹${(item.price * item.quantity).toFixed(2)}</li>`;
+              }).join('')}
             </ul>
             ${order.notes ? `<p><strong>Notes:</strong> ${order.notes}</p>` : ''}
           </div>
@@ -128,12 +240,312 @@
         });
         const data = await res.json();
         if (data.success) {
-          fetchOrders(); // Refresh orders
+          fetchOrders();
         }
       } catch (err) {
         alert('Error updating status');
       }
     }
+
+    // ==========================================
+    // STOCK MANAGEMENT
+    // ==========================================
+    async function fetchStocks() {
+      try {
+        const res = await fetch('/api/stocks', {
+          headers: { 'X-Admin-Token': adminToken }
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          displayStocks(data.stocks);
+        }
+      } catch (err) {
+        console.error('Error fetching stocks:', err);
+      }
+    }
+
+    function displayStocks(stocks) {
+      const stockTable = document.getElementById('stockTable');
+      
+      stockTable.innerHTML = `
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Unit</th>
+              <th style="text-align: center;">Limit</th>
+              <th style="text-align: center;">Sold</th>
+              <th style="text-align: center;">Available</th>
+              <th style="text-align: center;">Status</th>
+              <th style="text-align: center;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${stocks.map(stock => `
+              <tr>
+                <td>${stock.name}</td>
+                <td>${stock.unit}</td>
+                <td style="text-align: center;">
+                  <input type="number" id="limit_${stock.id}" value="${stock.limit === 'Unlimited' ? '' : stock.limit}" 
+                    style="width: 70px; padding: 4px;" ${stock.limit === 'Unlimited' ? 'disabled' : ''}>
+                </td>
+                <td style="text-align: center;">${typeof stock.sold === 'number' ? stock.sold.toFixed(2) : stock.sold}</td>
+                <td style="text-align: center; font-weight: bold;" class="${stock.available > 5 ? 'available-high' : (stock.available > 0 ? 'available-low' : 'available-none')}">
+                  ${stock.available !== null ? stock.available.toFixed(2) : '∞'}
+                </td>
+                <td style="text-align: center;">
+                  <span class="${stock.inStock ? 'in-stock' : 'out-stock'}">
+                    ${stock.inStock ? 'IN STOCK' : 'OUT OF STOCK'}
+                  </span>
+                </td>
+                <td style="text-align: center;">
+                  ${stock.limit !== 'Unlimited' ? `
+                    <button onclick="updateStockLimit(${stock.id})" class="btn-sm btn-blue" style="padding: 4px 12px;">
+                      Update
+                    </button>
+                  ` : 'No limit'}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    async function updateStockLimit(productId) {
+      const newLimit = parseFloat(document.getElementById(`limit_${productId}`).value);
+      
+      if (isNaN(newLimit) || newLimit < 0) {
+        alert('Please enter a valid limit');
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/admin/update-stock', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Admin-Token': adminToken
+          },
+          body: JSON.stringify({ productId, newLimit })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          alert('Stock limit updated successfully!');
+          fetchStocks();
+        } else {
+          alert('Failed to update stock limit');
+        }
+      } catch (err) {
+        alert('Error updating stock limit');
+      }
+    }
+
+    async function resetAllStocks() {
+      if (confirm('⚠️ WARNING: This will reset ALL stock counts for today. Are you sure?')) {
+        try {
+          const res = await fetch('/api/admin/reset-all-stocks', {
+            method: 'POST',
+            headers: { 'X-Admin-Token': adminToken }
+          });
+          const data = await res.json();
+          
+          if (data.success) {
+            alert('All stocks reset successfully!');
+            fetchStocks();
+          } else {
+            alert('Failed to reset stocks');
+          }
+        } catch (err) {
+          alert('Error resetting stocks');
+        }
+      }
+    }
+
+    // ==========================================
+    // PRODUCT MANAGEMENT
+    // ==========================================
+    let allProducts = [];
+
+    async function fetchProducts() {
+      try {
+        const res = await fetch('/api/admin/products', {
+          headers: { 'X-Admin-Token': adminToken }
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          allProducts = data.products;
+          displayProducts(allProducts);
+        }
+      } catch (err) {
+        console.error('Error fetching products:', err);
+      }
+    }
+
+    function displayProducts(products) {
+      const productsDiv = document.getElementById('productsTable');
+      
+      productsDiv.innerHTML = `
+        <table class="products-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Price</th>
+              <th>Unit</th>
+              <th>Category</th>
+              <th style="text-align: center;">Stock</th>
+              <th style="text-align: center;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${products.map(product => `
+              <tr>
+                <td>${product.id}</td>
+                <td><input type="text" id="name_${product.id}" value="${product.name}" style="width: 120px; padding: 4px;"></td>
+                <td><input type="number" step="0.01" id="price_${product.id}" value="${product.price}" style="width: 70px; padding: 4px;"></td>
+                <td>
+                  <select id="unit_${product.id}" style="padding: 4px;">
+                    <option ${product.unit === 'kg' ? 'selected' : ''}>kg</option>
+                    <option ${product.unit === '500g' ? 'selected' : ''}>500g</option>
+                    <option ${product.unit === '250g' ? 'selected' : ''}>250g</option>
+                    <option ${product.unit === '100g' ? 'selected' : ''}>100g</option>
+                    <option ${product.unit === '12pc' ? 'selected' : ''}>12pc</option>
+                    <option ${product.unit === 'pkt' ? 'selected' : ''}>pkt</option>
+                  </select>
+                </td>
+                <td>
+                  <select id="category_${product.id}" style="padding: 4px;">
+                    <option ${product.category === 'Fruits' ? 'selected' : ''}>Fruits</option>
+                    <option ${product.category === 'Vegetables' ? 'selected' : ''}>Vegetables</option>
+                    <option ${product.category === 'Combo' ? 'selected' : ''}>Combo</option>
+                  </select>
+                </td>
+                <td style="text-align: center;">
+                  <span class="${product.stock ? 'in-stock' : 'out-stock'}">
+                    ${product.stock ? 'IN STOCK' : 'OUT'}
+                  </span>
+                </td>
+                <td style="text-align: center; white-space: nowrap;">
+                  <button onclick="updateProduct(${product.id})" class="btn-sm btn-blue" style="padding: 4px 10px; margin: 2px;">💾 Save</button>
+                  <button onclick="deleteProduct(${product.id})" class="btn-sm btn-orange" style="padding: 4px 10px; margin: 2px;">🗑️ Delete</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    async function updateProduct(productId) {
+      const name = document.getElementById(`name_${productId}`).value;
+      const price = parseFloat(document.getElementById(`price_${productId}`).value);
+      const unit = document.getElementById(`unit_${productId}`).value;
+      const category = document.getElementById(`category_${productId}`).value;
+      
+      try {
+        const res = await fetch('/api/admin/update-product', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Admin-Token': adminToken
+          },
+          body: JSON.stringify({ productId, name, price, unit, category })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          alert('Product updated successfully!');
+          fetchProducts();
+          fetchStocks();
+        } else {
+          alert('Failed to update product');
+        }
+      } catch (err) {
+        alert('Error updating product');
+      }
+    }
+
+    async function deleteProduct(productId) {
+      if (confirm('⚠️ Are you sure you want to delete this product? This cannot be undone.')) {
+        try {
+          const res = await fetch('/api/admin/delete-product', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'X-Admin-Token': adminToken
+            },
+            body: JSON.stringify({ productId })
+          });
+          const data = await res.json();
+          
+          if (data.success) {
+            alert('Product deleted successfully!');
+            fetchProducts();
+            fetchStocks();
+          } else {
+            alert('Failed to delete product');
+          }
+        } catch (err) {
+          alert('Error deleting product');
+        }
+      }
+    }
+
+    function showAddProductForm() {
+      document.getElementById('productModalTitle').innerText = 'Add New Product';
+      document.getElementById('editProductId').value = '';
+      document.getElementById('productName').value = '';
+      document.getElementById('productPrice').value = '';
+      document.getElementById('productUnit').value = 'kg';
+      document.getElementById('productCategory').value = 'Fruits';
+      document.getElementById('productStockLimit').value = '';
+      document.getElementById('productImage').value = '';
+      document.getElementById('productModal').style.display = 'flex';
+    }
+
+    function closeProductModal() {
+      document.getElementById('productModal').style.display = 'none';
+    }
+
+    document.getElementById('productForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const productData = {
+        name: document.getElementById('productName').value,
+        price: parseFloat(document.getElementById('productPrice').value),
+        unit: document.getElementById('productUnit').value,
+        category: document.getElementById('productCategory').value,
+        stockLimit: parseFloat(document.getElementById('productStockLimit').value) || null,
+        image: document.getElementById('productImage').value
+      };
+      
+      try {
+        const res = await fetch('/api/admin/add-product', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Admin-Token': adminToken
+          },
+          body: JSON.stringify(productData)
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          alert('Product added successfully!');
+          closeProductModal();
+          fetchProducts();
+          fetchStocks();
+        } else {
+          alert('Failed to add product: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Error adding product');
+      }
+    });
   </script>
 </body>
 </html>
