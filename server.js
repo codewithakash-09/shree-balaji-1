@@ -26,7 +26,16 @@ PORT=5000
 console.log('✅ Environment variables loaded successfully');
 const app = express();
 // Add this near the top of your server.js, after 'const app = express();'
+app.get('/sitemap.xml', (req, res) => {
+  res.setHeader('Content-Type', 'application/xml');
+  res.setHeader('X-Robots-Tag', 'index,follow');
+  res.sendFile(path.join(__dirname, 'public', 'sitemap.xml'));
+});
 
+app.get('/robots.txt', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain');
+  res.sendFile(path.join(__dirname, 'public', 'robots.txt'));
+});
 // --- Global Concurrent Request Limiter ---
 let activeRequests = 0;
 const MAX_CONCURRENT_REQUESTS = 8; // A safe limit for your 512MB/0.1 CPU instance
@@ -673,13 +682,7 @@ const calculateSecureTotal = (cartItems) => {
   });
   return { total: Math.round(total * 100) / 100, verifiedItems };
 };
-// Allow Googlebot to access sitemap
-app.use('/sitemap.xml', (req, res, next) => {
-  res.setHeader('Content-Type', 'application/xml');
-  res.setHeader('X-Robots-Tag', 'index,follow');
-  next();
-});
-// ==========================================
+// =======================================
 // API Routes
 // ==========================================
 
