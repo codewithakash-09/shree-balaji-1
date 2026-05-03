@@ -831,7 +831,7 @@ app.post('/api/razorpay-webhook', express.raw({type: 'application/json'}), async
 
 app.get('/api/admin/orders', async (req, res) => {
   const token = req.header('X-Admin-Token');
-  if (token !== process.env.ADMIN_TOKEN) {
+  if (token !== process.env.ADMIN_TOKEN.trim()) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
 
