@@ -1042,5 +1042,3 @@ server.on('error', (err) => {
     console.error('Server error:', err);
   }
 });
-// Start server
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
