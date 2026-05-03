@@ -681,7 +681,7 @@ const calculateSecureTotal = (cartItems) => {
 // API Routes
 // ==========================================
 app.get('/api/products', (req, res) => {
-  res.json({ products: products }); 
+  res.json(products); 
 });
 
 app.post('/api/checkout/create-order', async (req, res) => {
