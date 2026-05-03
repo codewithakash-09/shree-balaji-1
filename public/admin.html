@@ -251,7 +251,7 @@
           <div style="display: flex; justify-content: space-between; align-items: start;">
             <div>
               <h3>Order #${order.local_order_id || order.id}</h3>
-              <p>${new Date(order.order_date || order.created_at).toLocaleString()}</p>
+              <p>📅 Order #${order.id}</p>
               <p><strong>${order.customer_name}</strong> - ${order.phone}</p>
               <p>${order.address}</p>
               <p>Amount: ₹${order.total_amount}</p>
