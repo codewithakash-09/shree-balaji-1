@@ -98,6 +98,19 @@ app.use(express.static(path.join(__dirname, 'public')));
 //     console.log(`🧹 Cleaned up orders, keeping last ${MAX_ORDERS}`);
 //   }
 // }
+// Admin token verification helper
+function verifyAdminToken(token) {
+  const cleanToken = token ? token.trim() : '';
+  const cleanAdminToken = process.env.ADMIN_TOKEN ? process.env.ADMIN_TOKEN.trim() : '';
+  
+  console.log('🔑 Token verification:', {
+    providedLength: cleanToken.length,
+    expectedLength: cleanAdminToken.length,
+    match: cleanToken === cleanAdminToken
+  });
+  
+  return cleanToken === cleanAdminToken;
+}
 async function initDB() {
   try {
     await pool.query(`
@@ -353,7 +366,7 @@ app.get('/api/admin/products', async (req, res) => {
 // Update product price
 app.post('/api/admin/update-price', async (req, res) => {
   const token = req.header('X-Admin-Token');
-  if (token !== process.env.ADMIN_TOKEN) {
+  if (!verifyAdminToken(token)) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
   
@@ -374,7 +387,7 @@ app.post('/api/admin/update-price', async (req, res) => {
 // Update product stock limit
 app.post('/api/admin/update-stock-limit', async (req, res) => {
   const token = req.header('X-Admin-Token');
-  if (token !== process.env.ADMIN_TOKEN) {
+  if (!verifyAdminToken(token)) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
   
@@ -394,7 +407,7 @@ app.post('/api/admin/update-stock-limit', async (req, res) => {
 // Add new product
 app.post('/api/admin/add-product', async (req, res) => {
   const token = req.header('X-Admin-Token');
-  if (token !== process.env.ADMIN_TOKEN) {
+  if (!verifyAdminToken(token)) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
   
@@ -431,7 +444,7 @@ app.post('/api/admin/add-product', async (req, res) => {
 // Update product details
 app.post('/api/admin/update-product', async (req, res) => {
   const token = req.header('X-Admin-Token');
-  if (token !== process.env.ADMIN_TOKEN) {
+ if (!verifyAdminToken(token)) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
   
@@ -456,7 +469,7 @@ app.post('/api/admin/update-product', async (req, res) => {
 // Delete product
 app.post('/api/admin/delete-product', async (req, res) => {
   const token = req.header('X-Admin-Token');
-  if (token !== process.env.ADMIN_TOKEN) {
+ if (!verifyAdminToken(token)) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
   
@@ -624,7 +637,7 @@ updateProductStocks();
 app.get('/api/stocks', async (req, res) => {
   const token = req.header('X-Admin-Token');
   
-  if (token !== process.env.ADMIN_TOKEN) {
+  if (!verifyAdminToken(token)) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
   
@@ -652,7 +665,7 @@ app.post('/api/admin/update-stock', async (req, res) => {
   const token = req.header('X-Admin-Token');
   const { productId, newLimit } = req.body;
   
-  if (token !== process.env.ADMIN_TOKEN) {
+  if (!verifyAdminToken(token)) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
   
@@ -668,7 +681,7 @@ app.post('/api/admin/update-stock', async (req, res) => {
 app.post('/api/admin/reset-all-stocks', async (req, res) => {
   const token = req.header('X-Admin-Token');
   
-  if (token !== process.env.ADMIN_TOKEN) {
+  if (!verifyAdminToken(token)) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
   
@@ -834,7 +847,7 @@ app.post('/api/razorpay-webhook', express.raw({type: 'application/json'}), async
 
 app.get('/api/admin/orders', async (req, res) => {
   const token = req.header('X-Admin-Token');
-  if (token !== process.env.ADMIN_TOKEN.trim()) {
+  if (!verifyAdminToken(token)) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
 
@@ -937,7 +950,7 @@ app.post('/api/update-order-status', async (req, res) => {
 // Manual Clear Orders Endpoint
 app.post('/api/admin/clear-orders', async (req, res) => {
   const token = req.header('X-Admin-Token');
-  if (token !== process.env.ADMIN_TOKEN) {
+  if (!verifyAdminToken(token)) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
   
