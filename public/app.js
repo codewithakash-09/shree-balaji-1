@@ -228,16 +228,18 @@ function addToCart(id) {
   const qtySelect = document.getElementById(`qty_${id}`);
   const selectedQty = qtySelect ? parseFloat(qtySelect.value) : 1;
   
+  const product = products.find(p => p.id === id);
+  if (!product) return;
+  
   const existing = cart.find(item => item.id === id);
   if (existing) {
     existing.quantity += selectedQty;
   } else {
-    cart.push({ id, quantity: selectedQty });
+    cart.push({ id: id, quantity: selectedQty });
   }
   saveCart(); 
   toggleCart(true);
 }
-
 function removeFromCart(id) {
   cart = cart.filter(item => item.id !== id);
   saveCart();
