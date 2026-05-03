@@ -258,63 +258,68 @@ function saveCart() {
   updateCartUI(); 
 }
 
-function updateCartUI() {
-  let total = 0, count = 0, html = '';
-  cart.forEach(item => {
-    const p = products.find(p => p.id === item.id);
-    if (!p) return;
-    
-    let displayQty = '';
-    if (p.unit === 'kg') {
-      displayQty = item.quantity >= 1 ? `${item.quantity} kg` : `${item.quantity * 1000}g`;
-    } else if (p.unit === '500g') {
-      displayQty = item.quantity > 1 ? `${item.quantity * 500}g (${item.quantity} × 500g)` : `${item.quantity * 500}g`;
-    } else if (p.unit === '250g') {
-      displayQty = item.quantity > 1 ? `${item.quantity * 250}g (${item.quantity} × 250g)` : `${item.quantity * 250}g`;
-    } else if (p.unit === '100g') {
-      displayQty = item.quantity > 1 ? `${item.quantity * 100}g (${item.quantity} × 100g)` : `${item.quantity * 100}g`;
-    } else {
-      displayQty = `${item.quantity} ${p.unit}`;
-    }
-    
-    const itemTotal = p.price * item.quantity;
-    total += itemTotal;
-    count += item.quantity;
-    
-       html += `
-      <div class="cart-item">
-        <div class="cart-item-details">
-          <div style="display: flex; justify-content: space-between; align-items: start;">
-            <h4 style="flex: 1;">${p.name}</h4>
-            <button onclick="removeFromCart(${p.id})" style="background: none; border: none; color: #ff5722; cursor: pointer; font-size: 1.2rem; padding: 0 5px;" title="Remove item">
-              <i class="fas fa-trash-alt"></i>
-            </button>
-          </div>
-          <div style="color:var(--primary); font-weight:bold;">₹${p.price} / ${p.unit}</div>
-          <div style="font-size: 0.85rem; color: #666;">Qty: ${displayQty}</div>
-          <div class="qty-controls">
-            <button onclick="updateQty(${p.id}, -0.25)">-¼</button>
-            <button onclick="updateQty(${p.id}, -0.5)">-½</button>
-            <span>${item.quantity}</span>
-            <button onclick="updateQty(${p.id}, 0.5)">+½</button>
-            <button onclick="updateQty(${p.id}, 0.25)">+¼</button>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
-            <button onclick="removeFromCart(${p.id})" style="background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; padding: 3px 10px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-family: 'Poppins', sans-serif;">
-              🗑️ Remove
-            </button>
-            <span style="font-weight: bold; color: #ff5722;">₹${itemTotal.toFixed(2)}</span>
-          </div>
-        </div>
-      </div>`;
-  });
-  DOM.cartItems.innerHTML = html || '<p style="text-align:center;padding:20px;color:#666;">🛒 Cart is empty</p>';
-  DOM.cartTotal.innerText = `₹${total.toFixed(2)}`;
-  DOM.cartCount.innerText = Math.round(count * 100) / 100;
-  DOM.checkoutBtn.disabled = total < 200;
-  DOM.minOrderWarning.innerText = total < 200 ? `Add ₹${(200 - total).toFixed(2)} more for min order` : "✅ Free Delivery!";
+function updateCartItemQuantity(productId, newValue) {
+  const product = products.find(p => p.id === productId);
+  if (!product) return;
+
+  let newQuantity = newValue;
+  
+  // Convert based on product unit
+  if (product.unit === 'kg') {
+    newQuantity = newValue / 1000;
+  } else if (product.unit === '500g') {
+    newQuantity = newValue / 500;
+  } else if (product.unit === '250g') {
+    newQuantity = newValue / 250;
+  } else if (product.unit === '100g') {
+    newQuantity = newValue / 100;
+  } else if (product.unit === '12pc') {
+    // newValue is already in dozens (e.g., 0.5 = 6 pieces, 1 = 12 pieces)
+    newQuantity = newValue;
+  } else if (product.unit === 'pkt') {
+    // newValue is already in packets
+    newQuantity = newValue;
+  }
+
+  // Find and update the cart item
+  const cartItem = cart.find(item => item.id === productId);
+  if (cartItem) {
+    cartItem.quantity = newQuantity;
+  }
+  
+  saveCart();
 }
 
+function updateCartItemQuantity(productId, newGramQty) {
+  const product = products.find(p => p.id === productId);
+  if (!product) return;
+
+  let newQuantity = newGramQty;
+  
+  // Convert the gram-based selection back to the product's stored unit
+  if (product.unit === 'kg') {
+    newQuantity = newGramQty / 1000;
+  } else if (product.unit === '500g') {
+    newQuantity = newGramQty / 500;
+  } else if (product.unit === '250g') {
+    newQuantity = newGramQty / 250;
+  } else if (product.unit === '100g') {
+    newQuantity = newGramQty / 100;
+  } else if (product.unit === '12pc') {
+    // For items sold in dozens, keep as-is or implement similar logic if needed
+    newQuantity = newGramQty; // Fallback, but shouldn't be used for grams
+  } else {
+    newQuantity = newGramQty;
+  }
+
+  // Find and update the cart item
+  const cartItem = cart.find(item => item.id === productId);
+  if (cartItem) {
+    cartItem.quantity = newQuantity;
+  }
+  
+  saveCart();
+}
 function toggleCart(forceOpen = false) {
   const isOpen = DOM.cartSidebar.classList.contains('open');
   if (isOpen && !forceOpen) { 
@@ -325,7 +330,6 @@ function toggleCart(forceOpen = false) {
     DOM.cartOverlay.classList.add('show'); 
   }
 }
-
 function openCustomerModal() { 
   toggleCart(); 
   DOM.customerModal.classList.add('show'); 
