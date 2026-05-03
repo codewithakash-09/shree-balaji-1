@@ -261,24 +261,36 @@ let stockSold = {};
 async function initializeStockSold() {
   stockSold = {};
   try {
-    const result = await pool.query("SELECT * FROM orders WHERE status = 'DELIVERED'");
+    const result = await pool.query("SELECT * FROM orders WHERE status = 'DELIVERED' AND stock_deducted = true");
+    
     result.rows.forEach(order => {
-      // PostgreSQL pg library automatically parses JSONB columns
-      const items = order.items; 
+      // SAFETY CHECK: Make sure items exists and is an array
+      const items = order.items;
+      
+      if (!items || !Array.isArray(items)) {
+        console.log(`⚠️ Order ${order.local_order_id} has invalid items data, skipping`);
+        return; // Skip this order
+      }
+      
       items.forEach(item => {
-        const productId = item.id;
-        const quantity = item.quantity;
-        if (!stockSold[productId]) {
-          stockSold[productId] = 0;
+        // SAFETY CHECK: Make sure item has id and quantity
+        if (item && item.id && item.quantity) {
+          if (!stockSold[item.id]) {
+            stockSold[item.id] = 0;
+          }
+          stockSold[item.id] += item.quantity;
         }
-        stockSold[productId] += quantity;
       });
     });
+    
     console.log('✅ Stock sold initialized from Neon Database:', stockSold);
   } catch (err) {
-    console.error('❌ Error loading stock from database:', err);
+    console.error('❌ Error loading stock from database:', err.message);
+    console.log('⚠️ Starting with empty stock tracking');
+    stockSold = {}; // Reset to empty on error
   }
 }
+
 // ==========================================
 // PRODUCT MANAGEMENT APIs (ADMIN ONLY)
 // ==========================================
