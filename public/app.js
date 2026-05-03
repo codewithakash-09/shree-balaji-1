@@ -59,9 +59,19 @@ const FALLBACK_IMAGE = 'data:image/svg+xml,' + encodeURIComponent(`
 
 async function init() {
   try {
+    console.log('Fetching products from /api/products...');
     const res = await fetch('/api/products');
+    console.log('Response status:', res.status);
+    
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+    
     const data = await res.json();
-    products = data;  // Now works because server returns array directly
+    console.log('Received data type:', Array.isArray(data) ? 'Array' : typeof data);
+    console.log('Products count:', data.length || 0);
+    
+    products = data;
     renderProducts();
     updateCartUI();
     updatePageTitle();
@@ -71,7 +81,8 @@ async function init() {
       <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #666;">
         <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;"></i>
         <p>Failed to load products. Please refresh the page.</p>
-        <p style="font-size: 0.8rem; margin-top: 10px;">Error: ${error.message}</p>
+        <p style="font-size: 0.8rem; margin-top: 10px; color: #c62828;">Error: ${error.message}</p>
+        <p style="font-size: 0.7rem; margin-top: 5px;">Check that the server is running and API endpoint is accessible.</p>
       </div>`;
   }
 }
