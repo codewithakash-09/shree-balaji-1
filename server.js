@@ -1,4 +1,7 @@
 require('dotenv').config();
+if (process.env.ADMIN_TOKEN) {
+  process.env.ADMIN_TOKEN = process.env.ADMIN_TOKEN.trim().replace(/\r/g, '');
+}
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
