@@ -277,7 +277,7 @@ let stockSold = {};
 async function initializeStockSold() {
   stockSold = {};
   try {
-    const result = await pool.query("SELECT * FROM orders WHERE status = 'DELIVERED' AND stock_deducted = true");
+    const result = await pool.query("SELECT * FROM orders WHERE status = 'DELIVERED'");  // ← REMOVED "AND stock_deducted = true"
     
     result.rows.forEach(order => {
       // SAFETY CHECK: Make sure items exists and is an array
@@ -966,6 +966,7 @@ app.post('/api/admin/clear-orders', async (req, res) => {
   }
 });
 // Debug endpoint - REMOVE AFTER TESTING
+// Debug endpoint - REMOVE AFTER TESTING
 app.get('/api/debug-env', (req, res) => {
   res.json({
     adminTokenExists: !!process.env.ADMIN_TOKEN,
@@ -974,5 +975,50 @@ app.get('/api/debug-env', (req, res) => {
     databaseUrlExists: !!process.env.DATABASE_URL
   });
 });
+
+// TEMPORARY: Token test endpoint
+app.get('/api/admin/test-token', (req, res) => {
+  const token = req.header('X-Admin-Token');
+  const cleanToken = token ? token.trim() : '';
+  const cleanAdminToken = process.env.ADMIN_TOKEN ? process.env.ADMIN_TOKEN.trim() : '';
+  
+  res.json({
+    receivedToken: cleanToken,
+    receivedLength: cleanToken.length,
+    expectedLength: cleanAdminToken.length,
+    match: cleanToken === cleanAdminToken,
+    tokenCharCodes: cleanToken.split('').map(c => c.charCodeAt(0)),
+    adminTokenCharCodes: cleanAdminToken.split('').map(c => c.charCodeAt(0))
+  });
+});
+
+// TEMPORARY: Fix database schema - add stock_deducted column if missing
+app.get('/api/admin/fix-db-schema', async (req, res) => {
+  const token = req.header('X-Admin-Token');
+  if (!verifyAdminToken(token)) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+  
+  try {
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'orders' AND column_name = 'stock_deducted'
+        ) THEN
+          ALTER TABLE orders ADD COLUMN stock_deducted BOOLEAN DEFAULT FALSE;
+        END IF;
+      END $$;
+    `);
+    
+    res.json({ success: true, message: "Database schema fixed" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Start server
+app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
 // Start server
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
