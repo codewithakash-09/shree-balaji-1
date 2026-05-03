@@ -765,7 +765,7 @@ for (const item of items) {
     );
 
     res.json({ success: true, isCOD: false, localOrderId, key_id: process.env.RAZORPAY_KEY_ID, amount: rpOrder.amount, razorpay_order_id: rpOrder.id });
-  }   } catch (err) {
+  }    catch (err) {
     console.error('Order creation error:', err);
     console.error('Error details:', {
       message: err.message,
