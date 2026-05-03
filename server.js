@@ -695,7 +695,7 @@ app.post('/api/admin/reset-all-stocks', async (req, res) => {
   
   res.json({ success: true, message: "All stocks reset successfully" });
 });
-const calculateSecureTotal = (cartItems) => {
+const calculateSecureTotal = (cartItems, products) => {
   let total = 0;
   const verifiedItems = [];
   cartItems.forEach(item => {
@@ -704,11 +704,88 @@ const calculateSecureTotal = (cartItems) => {
       const qty = Math.max(0.01, parseFloat(item.quantity) || 1);
       const itemTotal = Math.round(product.price * qty * 100) / 100;
       total += itemTotal;
-      verifiedItems.push({ ...product, quantity: qty });
+      verifiedItems.push({ 
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        unit: product.unit,
+        quantity: qty
+      });
     }
   });
   return { total: Math.round(total * 100) / 100, verifiedItems };
 };
+
+app.post('/api/checkout/create-order', async (req, res) => {
+  try {
+    const { customer, items, paymentMethod, notes } = req.body;
+    
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: "Cart is empty" });
+    }
+    
+    // Check stock availability for all items
+    for (const item of items) {
+      const available = getAvailableStock(item.id);
+      if (available !== null && item.quantity > available) {
+        const product = products.find(p => p.id === item.id);
+        return res.status(400).json({ 
+          error: `${product ? product.name : 'Product'} - Only ${available} ${product ? product.unit : 'units'} available in stock` 
+        });
+      }
+    }
+    
+    const { total, verifiedItems } = calculateSecureTotal(items, products);
+    
+    if (total < 200) {
+      return res.status(400).json({ error: "Minimum order is ₹200" });
+    }
+
+    const localOrderId = `SBT_${nanoid(8)}`;
+    const method = paymentMethod === 'COD' ? 'COD' : 'ONLINE';
+    const customerNotes = notes || '';
+
+    // Handle COD
+    if (method === 'COD') {
+      await pool.query(
+        `INSERT INTO orders (local_order_id, customer_name, phone, address, items, total_amount, status, payment_method, notes, order_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
+        [localOrderId, customer.name, customer.phone, customer.address, JSON.stringify(verifiedItems), total, 'COD_CONFIRMED', 'COD', customerNotes]
+      );
+      return res.json({ success: true, isCOD: true, localOrderId });
+    }
+
+    // Handle Online Payment
+    const amountInPaise = Math.floor(total * 100);
+    if (amountInPaise <= 0) {
+      return res.status(400).json({ error: "Invalid order amount" });
+    }
+
+    const rpOrder = await razorpay.orders.create({ 
+      amount: amountInPaise, 
+      currency: "INR", 
+      receipt: localOrderId 
+    });
+
+    await pool.query(
+      `INSERT INTO orders (local_order_id, customer_name, phone, address, items, total_amount, status, payment_method, notes, razorpay_order_id, order_date) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
+      [localOrderId, customer.name, customer.phone, customer.address, JSON.stringify(verifiedItems), total, 'PENDING', 'ONLINE', customerNotes, rpOrder.id]
+    );
+
+    res.json({ 
+      success: true, 
+      isCOD: false, 
+      localOrderId, 
+      key_id: process.env.RAZORPAY_KEY_ID, 
+      amount: rpOrder.amount, 
+      razorpay_order_id: rpOrder.id 
+    });
+  } catch (err) {
+    console.error('Order creation error:', err);
+    res.status(500).json({ error: "Failed to create order. Please try again." });
+  }
+});
 // =======================================
 // API Routes
 // ==========================================
