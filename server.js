@@ -721,16 +721,18 @@ app.post('/api/checkout/create-order', async (req, res) => {
     const { customer, items, paymentMethod, notes } = req.body;
     
     if (!items || items.length === 0) return res.status(400).json({ error: "Cart is empty" });
+    
     // Check stock availability for all items
-for (const item of items) {
-  const available = getAvailableStock(item.id);
-  if (available !== null && item.quantity > available) {
-    const product = products.find(p => p.id === item.id);
-    return res.status(400).json({ 
-      error: `${product.name} - Only ${available} ${product.unit} available in stock` 
-    });
-  }
-}
+    for (const item of items) {
+      const available = getAvailableStock(item.id);
+      if (available !== null && item.quantity > available) {
+        const product = products.find(p => p.id === item.id);
+        return res.status(400).json({ 
+          error: `${product.name} - Only ${available} ${product.unit} available in stock` 
+        });
+      }
+    }
+    
     const { total, verifiedItems } = calculateSecureTotal(items);
     if (total < 200) return res.status(400).json({ error: "Minimum order is ₹200" });
 
@@ -759,24 +761,15 @@ for (const item of items) {
     });
 
     await pool.query(
-        `INSERT INTO orders (local_order_id, customer_name, phone, address, items, total_amount, status, payment_method, notes, razorpay_order_id) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [localOrderId, customer.name, customer.phone, customer.address, JSON.stringify(verifiedItems), total, 'PENDING', 'ONLINE', customerNotes, rpOrder.id]
+      `INSERT INTO orders (local_order_id, customer_name, phone, address, items, total_amount, status, payment_method, notes, razorpay_order_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [localOrderId, customer.name, customer.phone, customer.address, JSON.stringify(verifiedItems), total, 'PENDING', 'ONLINE', customerNotes, rpOrder.id]
     );
 
     res.json({ success: true, isCOD: false, localOrderId, key_id: process.env.RAZORPAY_KEY_ID, amount: rpOrder.amount, razorpay_order_id: rpOrder.id });
-  }    catch (err) {
+  } catch (err) {
     console.error('Order creation error:', err);
-    console.error('Error details:', {
-      message: err.message,
-      stack: err.stack,
-      code: err.code,
-      detail: err.detail
-    });
-    res.status(500).json({ 
-      error: "Failed to create order", 
-      details: err.message 
-    });
+    res.status(500).json({ error: "Failed to create order" });
   }
 });
 
