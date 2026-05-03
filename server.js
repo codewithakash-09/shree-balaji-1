@@ -17,6 +17,10 @@ const pool = new Pool({
     rejectUnauthorized: false // Required for Neon and Render
   }
 });
+console.log('🔐 ADMIN_TOKEN loaded:', process.env.ADMIN_TOKEN ? 'Yes' : 'NO');
+console.log('🔐 ADMIN_TOKEN length:', process.env.ADMIN_TOKEN ? process.env.ADMIN_TOKEN.length : 0);
+console.log('🔐 RAZORPAY_KEY_ID loaded:', process.env.RAZORPAY_KEY_ID ? 'Yes' : 'NO');
+console.log('🔐 DATABASE_URL loaded:', process.env.DATABASE_URL ? 'Yes' : 'NO');
 if (missingVars.length > 0) {
   console.error('❌ CRITICAL: Missing environment variables:', missingVars.join(', '));
   console.error('Please create a .env file with:');
@@ -933,6 +937,14 @@ app.post('/api/admin/clear-orders', async (req, res) => {
     res.status(500).json({ success: false, error: "Failed to clear orders" });
   }
 });
-
+// Debug endpoint - REMOVE AFTER TESTING
+app.get('/api/debug-env', (req, res) => {
+  res.json({
+    adminTokenExists: !!process.env.ADMIN_TOKEN,
+    adminTokenLength: process.env.ADMIN_TOKEN ? process.env.ADMIN_TOKEN.length : 0,
+    razorpayKeyExists: !!process.env.RAZORPAY_KEY_ID,
+    databaseUrlExists: !!process.env.DATABASE_URL
+  });
+});
 // Start server
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
