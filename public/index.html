@@ -61,25 +61,25 @@
     <div id="productsContainer" class="products-grid"></div>
   </main>
 
-  <div id="cartSidebar" class="cart-sidebar">
-    <div class="cart-header">
-  <h3>Your Cart</h3>
-  <button onclick="toggleCart()"><i class="fas fa-times"></i></button>
-</div>
-<div id="cartItems" class="cart-items"></div>
-
-<div style="padding: 15px; border-top: 1px dashed #ccc;">
-  <p style="font-size: 0.85rem; font-weight: 600; color: #555; margin-bottom: 8px;">Missing something? Type it here:</p>
-  <textarea id="customRequest" placeholder="e.g. 1kg Broccoli, 2 bunches of Spinach..." rows="2" 
-    style="width: 100%; border-radius: 8px; border: 1px solid #ddd; padding: 10px; font-size: 0.9rem; font-family: inherit; resize: none;"></textarea>
-</div>
-
-<div class="cart-footer">
-  <div class="total-row"><span>Total</span><span id="cartTotal">₹0</span></div>
-  <button id="checkoutBtn" class="btn-primary w-100" onclick="openCustomerModal()" disabled>Checkout</button>
-  <div id="minOrderWarning" class="warning-text"></div>
-</div>
+<div id="cartSidebar" class="cart-sidebar">
+  <div class="cart-header">
+    <h3>Your Cart</h3>
+    <button onclick="toggleCart()"><i class="fas fa-times"></i></button>
   </div>
+  <div id="cartItems" class="cart-items"></div>
+
+  <div style="padding: 15px; border-top: 1px dashed #ccc;">
+    <p style="font-size: 0.85rem; font-weight: 600; color: #555; margin-bottom: 8px;">Missing something? Type it here:</p>
+    <textarea id="customRequest" placeholder="e.g. 1kg Broccoli, 2 bunches of Spinach..." rows="2" 
+      style="width: 100%; border-radius: 8px; border: 1px solid #ddd; padding: 10px; font-size: 0.9rem; font-family: inherit; resize: none;"></textarea>
+  </div>
+
+  <div class="cart-footer">
+    <div class="total-row"><span>Total</span><span id="cartTotal">₹0</span></div>
+    <button id="checkoutBtn" class="btn-primary w-100" onclick="openCustomerModal()" disabled>Checkout</button>
+    <div id="minOrderWarning" class="warning-text"></div>
+  </div>
+</div>
   <div id="cartOverlay" class="overlay" onclick="toggleCart()"></div>
 
   <div id="customerModal" class="modal">
