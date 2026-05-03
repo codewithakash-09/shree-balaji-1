@@ -16,9 +16,6 @@ const DOM = {
   payBtn: document.getElementById('payBtn')
 };
 
-// ==========================================
-// SEO: UPDATE PAGE TITLE FUNCTION
-// ==========================================
 function updatePageTitle(productName) {
   if (productName) {
     document.title = `${productName} - Shree Balaji Traders | Fresh Fruits & Vegetables Near Me`;
@@ -27,33 +24,30 @@ function updatePageTitle(productName) {
   }
 }
 
-// Helper to get default quantity based on unit
 function getDefaultQty(unit) {
-  if (unit.includes('kg')) return 1; // Default 1kg
-  if (unit.includes('g') || unit.includes('100g') || unit.includes('250g')) return 1; // Default 1 unit
+  if (unit.includes('kg')) return 1;
+  if (unit.includes('g') || unit.includes('100g') || unit.includes('250g')) return 1;
   if (unit.includes('pc') || unit.includes('pkt')) return 1;
   return 1;
 }
 
-// Helper to get quantity options based on unit
 function getQuantityOptions(unit) {
   if (unit === 'kg') {
     return [0.25, 0.5, 1, 1.5, 2, 3, 5];
   } else if (unit === '500g') {
-    return [0.5, 1, 1.5, 2]; // Multiples of 500g
+    return [0.5, 1, 1.5, 2];
   } else if (unit === '250g') {
-    return [0.5, 1, 2, 3, 4]; // Multiples of 250g
+    return [0.5, 1, 2, 3, 4];
   } else if (unit === '100g') {
-    return [0.5, 1, 2, 3, 4, 5]; // Multiples of 100g
+    return [0.5, 1, 2, 3, 4, 5];
   } else if (unit === '12pc') {
-    return [0.5, 1, 2]; // 0.5 = 6 bananas
+    return [0.5, 1, 2];
   } else if (unit === 'pkt') {
     return [1, 2, 3];
   }
   return [1, 2, 3];
 }
 
-// Create a simple fallback image as a constant
 const FALLBACK_IMAGE = 'data:image/svg+xml,' + encodeURIComponent(`
   <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
     <rect fill="#e8f5e9" width="200" height="200"/>
@@ -67,10 +61,9 @@ async function init() {
   try {
     const res = await fetch('/api/products');
     const data = await res.json();
-    products = data.products;
+    products = data;  // Now works because server returns array directly
     renderProducts();
     updateCartUI();
-    // Set default title on page load
     updatePageTitle();
   } catch (error) {
     console.error('Failed to load products:', error);
@@ -78,6 +71,7 @@ async function init() {
       <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #666;">
         <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;"></i>
         <p>Failed to load products. Please refresh the page.</p>
+        <p style="font-size: 0.8rem; margin-top: 10px;">Error: ${error.message}</p>
       </div>`;
   }
 }
@@ -87,7 +81,6 @@ function setCategory(cat, el) {
   document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
   if (el) el.classList.add('active');
   renderProducts();
-  // Update title when category changes
   updatePageTitle(`${cat} Category`);
 }
 
@@ -112,7 +105,6 @@ function renderProducts() {
         <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
         <p>No products found for "${searchTerm}"</p>
       </div>`;
-    // Update title for search results
     if (searchTerm) {
       updatePageTitle(`Search: ${searchTerm}`);
     }
@@ -160,10 +152,8 @@ function renderProducts() {
     `}).join('');
   }
   
-  // Add click event listeners to product cards for SEO title update
   document.querySelectorAll('.product-card').forEach(card => {
     card.addEventListener('click', (e) => {
-      // Don't trigger if clicking on button or select
       if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
       const productName = card.getAttribute('data-product-name');
       if (productName) {
@@ -182,7 +172,6 @@ function updateProductPrice(productId, unitPrice, selectedQty) {
     priceElement.textContent = totalPrice;
   }
   
-  // Find the product to get its original unit
   const product = products.find(p => p.id === productId);
   if (unitElement && product) {
     const qty = parseFloat(selectedQty);
@@ -243,28 +232,18 @@ function removeFromCart(id) {
   saveCart();
 }
 
-function updateQty(id, change) {
-  const item = cart.find(i => i.id === id);
-  if (!item) return;
-  item.quantity += change;
-  // Round to 2 decimal places to avoid floating point issues
-  item.quantity = Math.round(item.quantity * 100) / 100;
-  if (item.quantity <= 0) cart = cart.filter(i => i.id !== id);
-  saveCart();
-}
-
 function saveCart() { 
   localStorage.setItem('sbt_cart', JSON.stringify(cart)); 
   updateCartUI(); 
 }
 
+// SINGLE updateCartItemQuantity function (removed duplicate)
 function updateCartItemQuantity(productId, newValue) {
   const product = products.find(p => p.id === productId);
   if (!product) return;
 
   let newQuantity = newValue;
   
-  // Convert based on product unit
   if (product.unit === 'kg') {
     newQuantity = newValue / 1000;
   } else if (product.unit === '500g') {
@@ -274,14 +253,11 @@ function updateCartItemQuantity(productId, newValue) {
   } else if (product.unit === '100g') {
     newQuantity = newValue / 100;
   } else if (product.unit === '12pc') {
-    // newValue is already in dozens (e.g., 0.5 = 6 pieces, 1 = 12 pieces)
     newQuantity = newValue;
   } else if (product.unit === 'pkt') {
-    // newValue is already in packets
     newQuantity = newValue;
   }
 
-  // Find and update the cart item
   const cartItem = cart.find(item => item.id === productId);
   if (cartItem) {
     cartItem.quantity = newQuantity;
@@ -290,36 +266,123 @@ function updateCartItemQuantity(productId, newValue) {
   saveCart();
 }
 
-function updateCartItemQuantity(productId, newGramQty) {
-  const product = products.find(p => p.id === productId);
-  if (!product) return;
-
-  let newQuantity = newGramQty;
+function updateCartUI() {
+  let total = 0, count = 0, html = '';
   
-  // Convert the gram-based selection back to the product's stored unit
-  if (product.unit === 'kg') {
-    newQuantity = newGramQty / 1000;
-  } else if (product.unit === '500g') {
-    newQuantity = newGramQty / 500;
-  } else if (product.unit === '250g') {
-    newQuantity = newGramQty / 250;
-  } else if (product.unit === '100g') {
-    newQuantity = newGramQty / 100;
-  } else if (product.unit === '12pc') {
-    // For items sold in dozens, keep as-is or implement similar logic if needed
-    newQuantity = newGramQty; // Fallback, but shouldn't be used for grams
-  } else {
-    newQuantity = newGramQty;
-  }
+  cart.forEach(item => {
+    const p = products.find(p => p.id === item.id);
+    if (!p) return;
 
-  // Find and update the cart item
-  const cartItem = cart.find(item => item.id === productId);
-  if (cartItem) {
-    cartItem.quantity = newQuantity;
-  }
-  
-  saveCart();
+    let unitMultiplier = 1;
+    let baseUnit = p.unit;
+    
+    if (p.unit === 'kg') {
+      unitMultiplier = 1000;
+      baseUnit = 'g';
+    } else if (p.unit === '500g') {
+      unitMultiplier = 500;
+      baseUnit = 'g';
+    } else if (p.unit === '250g') {
+      unitMultiplier = 250;
+      baseUnit = 'g';
+    } else if (p.unit === '100g') {
+      unitMultiplier = 100;
+      baseUnit = 'g';
+    } else if (p.unit === '12pc') {
+      baseUnit = 'pieces';
+    } else if (p.unit === 'pkt') {
+      baseUnit = 'pkt';
+    }
+
+    let currentQtyInGrams = item.quantity;
+    if (p.unit === 'kg') currentQtyInGrams = item.quantity * 1000;
+    else if (p.unit === '500g') currentQtyInGrams = item.quantity * 500;
+    else if (p.unit === '250g') currentQtyInGrams = item.quantity * 250;
+    else if (p.unit === '100g') currentQtyInGrams = item.quantity * 100;
+
+    let optionsHtml = '';
+    
+    if (p.unit === '12pc') {
+      const pieceOptions = [6, 12, 18, 24];
+      optionsHtml = pieceOptions.map(pcs => {
+        const isSelected = Math.abs(item.quantity * 12 - pcs) < 0.01;
+        return `<option value="${pcs / 12}" ${isSelected ? 'selected' : ''}>${pcs} pieces</option>`;
+      }).join('');
+      baseUnit = 'pieces';
+    } else if (p.unit === 'pkt') {
+      const pktOptions = [1, 2, 3, 5];
+      optionsHtml = pktOptions.map(pkts => {
+        const isSelected = Math.abs(item.quantity - pkts) < 0.01;
+        return `<option value="${pkts}" ${isSelected ? 'selected' : ''}>${pkts} packet${pkts > 1 ? 's' : ''}</option>`;
+      }).join('');
+      baseUnit = 'pkt';
+    } else {
+      const gramOptions = [50, 100, 250, 500, 1000];
+      optionsHtml = gramOptions.map(gram => {
+        const isSelected = Math.abs(currentQtyInGrams - gram) < 0.01;
+        return `<option value="${gram}" ${isSelected ? 'selected' : ''}>${gram}g</option>`;
+      }).join('');
+    }
+
+    const itemTotal = p.price * (currentQtyInGrams / (p.unit === 'kg' ? 1000 : (unitMultiplier > 1 ? unitMultiplier : 1)));
+    total += itemTotal;
+    count += item.quantity;
+
+    let displayQty = '';
+    if (p.unit === 'kg') {
+      displayQty = item.quantity >= 1 ? `${item.quantity} kg` : `${item.quantity * 1000}g`;
+    } else if (p.unit === '500g') {
+      displayQty = `${item.quantity * 500}g`;
+    } else if (p.unit === '250g') {
+      displayQty = `${item.quantity * 250}g`;
+    } else if (p.unit === '100g') {
+      displayQty = `${item.quantity * 100}g`;
+    } else {
+      displayQty = `${item.quantity} ${p.unit}`;
+    }
+
+    html += `
+      <div class="cart-item" data-product-id="${p.id}">
+        <div class="cart-item-details">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <h4 style="flex: 1;">${p.name}</h4>
+            <button onclick="removeFromCart(${p.id})" style="background: none; border: none; color: #ff5722; cursor: pointer; font-size: 1.2rem; padding: 0 5px;" title="Remove item">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </div>
+          <div style="color:var(--primary); font-weight:bold;">₹${p.price} / ${p.unit}</div>
+          <div style="font-size: 0.85rem; color: #666;">Current: ${displayQty}</div>
+          <div class="qty-controls" style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
+            <select class="cart-qty-select" data-product-id="${p.id}" style="padding: 6px; border-radius: 6px; border: 1px solid #ddd;">
+              ${optionsHtml}
+            </select>
+            <span style="color: #666;">${baseUnit === 'g' ? 'g' : baseUnit}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+            <button onclick="removeFromCart(${p.id})" style="background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; padding: 3px 10px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-family: 'Poppins', sans-serif;">
+              🗑️ Remove
+            </button>
+            <span style="font-weight: bold; color: #ff5722;">₹${itemTotal.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>`;
+  });
+
+  DOM.cartItems.innerHTML = html || '<p style="text-align:center;padding:20px;color:#666;">🛒 Cart is empty</p>';
+  DOM.cartTotal.innerText = `₹${total.toFixed(2)}`;
+  DOM.cartCount.innerText = Math.round(count * 100) / 100;
+  DOM.checkoutBtn.disabled = total < 200;
+  DOM.minOrderWarning.innerText = total < 200 ? `Add ₹${(200 - total).toFixed(2)} more for min order` : "✅ Free Delivery!";
+
+  document.querySelectorAll('.cart-qty-select').forEach(select => {
+    select.addEventListener('change', (e) => {
+      const productId = parseInt(e.target.getAttribute('data-product-id'));
+      const newValue = parseFloat(e.target.value);
+      updateCartItemQuantity(productId, newValue);
+    });
+  });
 }
+
 function toggleCart(forceOpen = false) {
   const isOpen = DOM.cartSidebar.classList.contains('open');
   if (isOpen && !forceOpen) { 
@@ -330,6 +393,7 @@ function toggleCart(forceOpen = false) {
     DOM.cartOverlay.classList.add('show'); 
   }
 }
+
 function openCustomerModal() { 
   toggleCart(); 
   DOM.customerModal.classList.add('show'); 
@@ -395,10 +459,11 @@ DOM.customerForm.addEventListener('submit', async (e) => {
   }
 });
 
-// Track Order Functions
+// Keep your existing trackOrder, retryPayment, order history functions here...
+// (They remain unchanged from your original file)
+
 function openTrackModal() {
   document.getElementById('trackModal').classList.add('show');
-  // Update title for tracking page
   updatePageTitle('Track Your Order');
 }
 
@@ -406,11 +471,9 @@ function closeTrackModal() {
   document.getElementById('trackModal').classList.remove('show');
   document.getElementById('trackResult').innerHTML = '';
   document.getElementById('trackOrderId').value = '';
-  // Reset title when closing modal
   updatePageTitle();
 }
 
-// Add this function to app.js
 async function retryPayment(orderId) {
   try {
     const response = await fetch('/api/checkout/retry-payment', {
@@ -418,9 +481,7 @@ async function retryPayment(orderId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ localOrderId: orderId })
     });
-    
     const data = await response.json();
-    
     if (data.success) {
       const options = {
         key: data.key_id,
@@ -489,7 +550,6 @@ async function trackOrder() {
         <div style="text-align: center; margin-bottom: 15px;">
           <h3 style="color: ${config.color}; margin-top: 10px;">${config.text}</h3>
         </div>
-        
         <div style="border-top: 1px solid #ddd; padding-top: 15px; margin-top: 10px;">
           <p><strong>📦 Order ID:</strong> ${order.id}</p>
           <p><strong>📅 Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
@@ -499,7 +559,6 @@ async function trackOrder() {
           <p><strong>📍 Address:</strong> ${order.customer_address}</p>
           <p><strong>📞 Phone:</strong> ${order.customer_phone}</p>
         </div>
-        
         <div style="background: white; padding: 12px; border-radius: 8px; margin-top: 15px;">
           <strong>🛒 Items Ordered:</strong>
           <ul style="margin-top: 8px; margin-left: 20px;">
@@ -507,7 +566,6 @@ async function trackOrder() {
           </ul>
           ${order.notes ? `<div style="margin-top: 10px; padding: 8px; background: #fff3e0; border-radius: 6px;"><strong>📝 Special Request:</strong> ${order.notes}</div>` : ''}
         </div>
-        
         ${order.status === 'PENDING' && order.payment_method === 'ONLINE' ? `
           <div style="margin-top: 15px; text-align: center;">
             <button onclick="retryPayment('${order.id}')" style="background: #ff5722; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; width: 100%;">
@@ -516,7 +574,6 @@ async function trackOrder() {
             <p style="font-size: 0.75rem; color: #666; margin-top: 8px;">Your payment failed or was cancelled. Click to try again.</p>
           </div>
         ` : ''}
-        
         <div style="margin-top: 15px; text-align: center; padding-top: 10px; border-top: 1px solid #ddd;">
           <a href="tel:+917398958319" style="display: inline-block; margin: 5px; padding: 8px 15px; background: #25d366; color: white; text-decoration: none; border-radius: 20px; font-size: 0.85rem;">
             💬 Chat on WhatsApp
@@ -532,10 +589,8 @@ async function trackOrder() {
   }
 }
 
-// Order History Functions
 function openHistoryModal() {
   document.getElementById('historyModal').classList.add('show');
-  // Update title for history page
   updatePageTitle('Order History');
 }
 
@@ -543,7 +598,6 @@ function closeHistoryModal() {
   document.getElementById('historyModal').classList.remove('show');
   document.getElementById('historyResult').innerHTML = '';
   document.getElementById('historyPhone').value = '';
-  // Reset title when closing modal
   updatePageTitle();
 }
 
@@ -616,7 +670,6 @@ function trackSpecificOrder(orderId) {
   }, 300);
 }
 
-// Auto-open track modal if URL contains ?track=ORDERID
 window.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
   const trackId = urlParams.get('track');
@@ -640,5 +693,4 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Initialize the app
 init();
