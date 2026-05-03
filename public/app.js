@@ -564,11 +564,11 @@ async function trackOrder() {
         <div style="border-top: 1px solid #ddd; padding-top: 15px; margin-top: 10px;">
           <p><strong>📦 Order ID:</strong> ${order.id}</p>
           <p><strong>📅 Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-          <p><strong>💰 Amount:</strong> ₹${order.amount_inr}</p>
+          <p><strong>💰 Amount:</strong> ₹${order.total_amount}</p>
           <p><strong>💳 Payment:</strong> ${order.payment_method === 'COD' ? 'Cash on Delivery' : 'Online Payment'}</p>
           <p><strong>👤 Customer:</strong> ${order.customer_name}</p>
-          <p><strong>📍 Address:</strong> ${order.customer_address}</p>
-          <p><strong>📞 Phone:</strong> ${order.customer_phone}</p>
+          <p><strong>📍 Address:</strong> ${order.address}</p>
+          <p><strong>📞 Phone:</strong> ${order.phone}</p>
         </div>
         <div style="background: white; padding: 12px; border-radius: 8px; margin-top: 15px;">
           <strong>🛒 Items Ordered:</strong>
@@ -658,7 +658,7 @@ async function fetchOrderHistory() {
             <span style="background: ${statusColors[order.status] || '#666'}; color: white; padding: 3px 10px; border-radius: 15px; font-size: 0.75rem; font-weight: 600;">${order.status}</span>
           </div>
           <p style="font-size: 0.8rem; color: #666;">📅 ${new Date(order.created_at).toLocaleString()}</p>
-          <p style="font-size: 0.85rem; font-weight: bold; color: #2e7d32;">💰 ₹${order.amount_inr} (${order.payment_method})</p>
+          <p style="font-size: 0.85rem; font-weight: bold; color: #2e7d32;">💰 ₹${order.total_amount} (${order.payment_method})</p>
           <button onclick="trackSpecificOrder('${order.id}')" style="background: #ff5722; color: white; border: none; padding: 6px 15px; border-radius: 20px; font-size: 0.75rem; cursor: pointer; margin-top: 8px; width: auto;">
             📍 Track This Order
           </button>
