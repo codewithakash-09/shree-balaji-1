@@ -356,7 +356,7 @@ function loadProductsFromFile() {
 // Get all products (with admin details)
 app.get('/api/admin/products', async (req, res) => {
   const token = req.header('X-Admin-Token');
-  if (token !== process.env.ADMIN_TOKEN) {
+  if (!verifyAdminToken(token)) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
   
@@ -895,7 +895,7 @@ app.get('/api/order-history/:phone', async (req, res) => {
 // Admin Status Update Endpoint
 app.post('/api/update-order-status', async (req, res) => {
   const { orderId, newStatus, adminKey } = req.body;
-  if (adminKey !== process.env.ADMIN_TOKEN) return res.status(401).json({ error: "Unauthorized" });
+  if (!verifyAdminToken(adminKey)) return res.status(401).json({ error: "Unauthorized" });
   
   const validStatuses = ['PENDING', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COD_CONFIRMED'];
   if (!validStatuses.includes(newStatus)) return res.status(400).json({ error: "Invalid status" });
