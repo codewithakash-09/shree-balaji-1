@@ -1017,8 +1017,30 @@ app.get('/api/admin/fix-db-schema', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+// Graceful shutdown handler
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Closing server...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
 
-// Start server
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+// Start server with error handling
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use. Trying again in 5 seconds...`);
+    setTimeout(() => {
+      server.close();
+      server.listen(PORT);
+    }, 5000);
+  } else {
+    console.error('Server error:', err);
+  }
+});
 // Start server
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
