@@ -852,14 +852,32 @@ app.get('/api/admin/orders', async (req, res) => {
   }
 
   try {
-    const result = await pool.query('SELECT * FROM orders ORDER BY order_date DESC');
+    const result = await pool.query('SELECT * FROM orders ORDER BY id DESC');
     res.json({ success: true, orders: result.rows });
   } catch (err) {
     console.error("Admin Error:", err);
     res.status(500).json({ success: false, error: "Server Error" });
   }
 });
-
+// TEMPORARY: Check database columns
+app.get('/api/admin/check-columns', async (req, res) => {
+  const token = req.header('X-Admin-Token');
+  if (!verifyAdminToken(token)) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+  
+  try {
+    const result = await pool.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'orders'
+      ORDER BY ordinal_position
+    `);
+    res.json({ success: true, columns: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 // Order Tracking API
 app.get('/api/track-order/:orderId', async (req, res) => {
   try {
@@ -869,7 +887,7 @@ app.get('/api/track-order/:orderId', async (req, res) => {
     }
     // Map database fields to match what the frontend expects
     const order = result.rows[0];
-    const formattedOrder = { ...order, id: order.local_order_id, created_at: order.order_date };
+    const formattedOrder = { ...order, id: order.local_order_id, created_at: order.id };
     res.json({ success: true, order: formattedOrder });
   } catch (err) {
     console.error('Tracking error:', err);
@@ -880,11 +898,11 @@ app.get('/api/track-order/:orderId', async (req, res) => {
 // Order History API (by phone number)
 app.get('/api/order-history/:phone', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM orders WHERE phone = $1 ORDER BY order_date DESC', [req.params.phone]);
+    const result = await pool.query('SELECT * FROM orders WHERE phone = $1 ORDER BY id DESC', [req.params.phone]);
     const formattedOrders = result.rows.map(order => ({
       ...order,
       id: order.local_order_id,
-      created_at: order.order_date
+     created_at: order.id
     }));
     res.json({ success: true, orders: formattedOrders });
   } catch (err) {
