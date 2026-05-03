@@ -253,30 +253,38 @@ function updateCartItemQuantity(productId, newValue) {
   const product = products.find(p => p.id === productId);
   if (!product) return;
 
-  let newQuantity = newValue;
+  let newQuantity;
   
+  // newValue is in grams for weight-based products
+  // Convert grams back to the product's unit
   if (product.unit === 'kg') {
-    newQuantity = newValue / 1000;
+    newQuantity = newValue / 1000;  // 500g → 0.5 kg, 2000g → 2 kg
   } else if (product.unit === '500g') {
-    newQuantity = newValue / 500;
+    newQuantity = newValue / 500;   // 250g → 0.5, 500g → 1, 1000g → 2
   } else if (product.unit === '250g') {
-    newQuantity = newValue / 250;
+    newQuantity = newValue / 250;   // 125g → 0.5, 250g → 1, 500g → 2
   } else if (product.unit === '100g') {
-    newQuantity = newValue / 100;
+    newQuantity = newValue / 100;   // 50g → 0.5, 100g → 1, 200g → 2
   } else if (product.unit === '12pc') {
+    // newValue is already the multiplier (0.5 = 6 pieces, 1 = 12 pieces)
     newQuantity = newValue;
   } else if (product.unit === 'pkt') {
+    // newValue is number of packets
+    newQuantity = newValue;
+  } else {
     newQuantity = newValue;
   }
 
+  // Validate minimum quantity
+  if (newQuantity < 0.01) newQuantity = 0.01;
+
   const cartItem = cart.find(item => item.id === productId);
   if (cartItem) {
-    cartItem.quantity = newQuantity;
+    cartItem.quantity = parseFloat(newQuantity.toFixed(3));
   }
   
   saveCart();
 }
-
 function updateCartUI() {
   let total = 0, count = 0, html = '';
   
