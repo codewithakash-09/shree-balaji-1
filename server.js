@@ -79,7 +79,7 @@ app.use(helmet({
 }));
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public')));
 
 
 // const MAX_ORDERS = 5000;
@@ -681,7 +681,7 @@ const calculateSecureTotal = (cartItems) => {
 // API Routes
 // ==========================================
 app.get('/api/products', (req, res) => {
-  res.json(products);
+  res.json({ products: products }); 
 });
 
 app.post('/api/checkout/create-order', async (req, res) => {
