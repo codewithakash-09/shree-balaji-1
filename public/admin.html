@@ -586,7 +586,40 @@ function displaySortedOrders(orders) {
         alert('Error updating status');
       }
     }
-
+ // ✅ ADD THE clearAllOrders FUNCTION HERE (after updateStatus)
+    async function clearAllOrders() {
+      if (confirm('⚠️ DANGER: This will DELETE ALL ORDERS permanently!\n\nAre you absolutely sure?')) {
+        const confirmAgain = confirm('Type "DELETE" to confirm:');
+        if (!confirmAgain) return;
+        
+        try {
+          const res = await fetch('/api/admin/clear-orders', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'X-Admin-Token': adminToken 
+            }
+          });
+          const data = await res.json();
+          
+          if (data.success) {
+            alert('✅ All orders cleared successfully!');
+            // Reset the orders display
+            currentOrders = [];
+            filteredOrders = [];
+            activeFilter = null;
+            displayOrders([]);
+            document.getElementById('totalOrders').textContent = '0';
+            document.getElementById('filteredCount').textContent = '0';
+            document.getElementById('ordersList').innerHTML = '<div style="text-align: center; padding: 40px; color: #888;">📭 No orders found</div>';
+          } else {
+            alert('❌ Failed to clear orders: ' + (data.error || 'Unknown error'));
+          }
+        } catch (err) {
+          alert('❌ Error clearing orders: ' + err.message);
+        }
+      }
+    }
     // ==========================================
     // STOCK MANAGEMENT
     // ==========================================
