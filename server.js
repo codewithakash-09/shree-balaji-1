@@ -692,6 +692,10 @@ app.post('/api/debug/deduct-stock', async (req, res) => {
     
     res.json({ success: true, message: "Stock deduction attempted" });
 });
+// 404 handler - must be after all other routes
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+});
 // ==========================================
 // Start Server
 // ==========================================
