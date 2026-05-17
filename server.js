@@ -111,49 +111,39 @@ async function deductStockOnDelivery(orderId) {
     const items = JSON.parse(order.items_json);
     console.log(`📦 Items:`, items.map(i => `${i.name} (ID ${i.id}) x${i.quantity}`));
     
-    // BULK UPDATE - Single query per product instead of SELECT + UPDATE
     for (const item of items) {
         const productId = item.id;
         const quantity = item.quantity;
         
-        const stockLimit = stockLimitsCache[productId];
+        // Check if stock limit exists, if not, auto-create with default limit 100
+        let stockLimit = stockLimitsCache[productId];
         if (!stockLimit) {
-            console.log(`⚠️ Product ID ${productId} has NO stock limit, skipping`);
-            continue;
+            console.log(`⚠️ Product ID ${productId} has NO stock limit, creating default limit...`);
+            // Create a default stock limit of 100 units
+            await StockService.updateStockLimit(productId, 100);
+            stockLimitsCache = await StockService.getAllStockLimits();
+            stockLimit = stockLimitsCache[productId];
+            if (!stockLimit) {
+                console.log(`❌ Failed to create stock limit for product ${productId}, skipping`);
+                continue;
+            }
         }
         
-        // Single query: Update stock sold directly
+        // Deduct stock
         await pool.query(`
             INSERT INTO stock_sold (product_id, sold_quantity)
             VALUES ($1, $2)
             ON CONFLICT (product_id) DO UPDATE SET
-                sold_quantity = stock_sold.sold_quantity + $2,
+                sold_quantity = stock_sold.sold_quantity + EXCLUDED.sold_quantity,
                 last_updated = CURRENT_TIMESTAMP
         `, [productId, quantity]);
         
-        console.log(`   ✅ Product ${productId}: +${quantity}`);
+        console.log(`   ✅ Product ${productId}: +${quantity} sold`);
     }
     
-    // Mark order as deducted
     await OrderService.updateStockDeducted(orderId, true);
     
-    // Quick update - only update affected products in cache
-    for (const item of items) {
-        const productId = item.id;
-        const quantity = item.quantity;
-        const product = productsCache.find(p => p.id === productId);
-        if (product) {
-            const newSold = (await StockService.getStockSold(productId));
-            const limit = stockLimitsCache[productId];
-            const inStock = limit ? (limit.limit - newSold) > 0 : true;
-            if (product.stock !== inStock) {
-                await ProductService.updateProductStockStatus(productId, inStock);
-                product.stock = inStock;
-            }
-        }
-    }
-    
-    // Refresh only affected products in cache
+    // Update cache and stock status
     for (const item of items) {
         const productId = item.id;
         const updatedProduct = await ProductService.getProductById(productId);
@@ -161,13 +151,24 @@ async function deductStockOnDelivery(orderId) {
             const index = productsCache.findIndex(p => p.id === productId);
             if (index !== -1) productsCache[index] = updatedProduct;
         }
-        stockLimitsCache = await StockService.getAllStockLimits();
+    }
+    
+    stockLimitsCache = await StockService.getAllStockLimits();
+    
+    for (const item of items) {
+        const productId = item.id;
+        const available = await getAvailableStock(productId);
+        const inStock = available === null ? true : available > 0;
+        const product = productsCache.find(p => p.id === productId);
+        if (product && product.stock !== inStock) {
+            await ProductService.updateProductStockStatus(productId, inStock);
+            product.stock = inStock;
+        }
     }
     
     console.log(`✅ Stock deducted for order: ${orderId}`);
     return true;
 }
-
 const calculateSecureTotal = (cartItems) => {
     let total = 0;
     const verifiedItems = [];
