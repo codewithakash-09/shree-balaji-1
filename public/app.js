@@ -1,3 +1,54 @@
+// Add at top of app.js
+let paymentRetryCount = 0;
+const MAX_PAYMENT_RETRIES = 3;
+
+async function retryPayment(orderId) {
+  if (paymentRetryCount >= MAX_PAYMENT_RETRIES) {
+    alert("Maximum retry attempts reached. Please contact support.");
+    return;
+  }
+  
+  paymentRetryCount++;
+  
+  try {
+    const response = await fetch('/api/checkout/retry-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ localOrderId: orderId })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      const options = {
+        key: data.key_id,
+        amount: data.amount,
+        currency: "INR",
+        name: "Shree Balaji Traders",
+        order_id: data.razorpay_order_id,
+        handler: async (response) => {
+          const verifyRes = await fetch('/api/checkout/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ localOrderId: orderId, ...response })
+          });
+          const verifyData = await verifyRes.json();
+          if (verifyData.success) {
+            paymentRetryCount = 0;
+            window.location.href = `success.html?id=${orderId}`;
+          } else {
+            alert("Payment verification failed. Please contact support.");
+          }
+        }
+      };
+      new Razorpay(options).open();
+    } else {
+      alert(data.error || "Failed to retry payment");
+    }
+  } catch (err) {
+    alert("Something went wrong. Please contact support.");
+  }
+}
 let products = [];
 let cart = JSON.parse(localStorage.getItem('sbt_cart') || '[]');
 let currentCategory = 'All';
@@ -64,6 +115,13 @@ const FALLBACK_IMAGE = 'data:image/svg+xml,' + encodeURIComponent(`
 `);
 
 async function init() {
+  // Show loading skeleton
+  DOM.productsContainer.innerHTML = `
+    <div style="grid-column: 1/-1; text-align: center; padding: 40px;">
+      <i class="fas fa-spinner fa-pulse" style="font-size: 2rem; color: #2e7d32;"></i>
+      <p>Loading fresh products...</p>
+    </div>
+  `;
   try {
     const res = await fetch('/api/products');
     const data = await res.json();
@@ -78,6 +136,7 @@ async function init() {
       <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #666;">
         <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;"></i>
         <p>Failed to load products. Please refresh the page.</p>
+        <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 20px; background: #2e7d32; color: white; border: none; border-radius: 6px; cursor: pointer;">Refresh</button>
       </div>`;
   }
 }
