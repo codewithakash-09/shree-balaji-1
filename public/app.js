@@ -536,47 +536,6 @@ function closeTrackModal() {
   updatePageTitle();
 }
 
-// Add this function to app.js
-async function retryPayment(orderId) {
-  try {
-    const response = await fetch('/api/checkout/retry-payment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ localOrderId: orderId })
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      const options = {
-        key: data.key_id,
-        amount: data.amount,
-        currency: "INR",
-        name: "Shree Balaji Traders",
-        order_id: data.razorpay_order_id,
-        handler: async (response) => {
-          const verifyRes = await fetch('/api/checkout/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ localOrderId: orderId, ...response })
-          });
-          const verifyData = await verifyRes.json();
-          if (verifyData.success) {
-            window.location.href = `success.html?id=${orderId}`;
-          } else {
-            alert("Payment verification failed. Please contact support.");
-          }
-        }
-      };
-      new Razorpay(options).open();
-    } else {
-      alert(data.error || "Failed to retry payment");
-    }
-  } catch (err) {
-    alert("Something went wrong. Please contact support.");
-  }
-}
-
 async function trackOrder() {
   const orderId = document.getElementById('trackOrderId').value.trim();
   const resultDiv = document.getElementById('trackResult');
