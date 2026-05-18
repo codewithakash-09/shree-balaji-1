@@ -537,6 +537,7 @@ app.post('/api/admin/update-product', async (req, res) => {
     }
 });
 
+// server.js - Replace the add-product endpoint
 app.post('/api/admin/add-product', async (req, res) => {
     const token = req.header('X-Admin-Token');
     if (token !== process.env.ADMIN_TOKEN) {
@@ -545,20 +546,42 @@ app.post('/api/admin/add-product', async (req, res) => {
     
     const { name, price, unit, category, image, stockLimit } = req.body;
     
+    // Validate required fields
+    if (!name || !price || !unit || !category) {
+        return res.status(400).json({ success: false, error: "Missing required fields" });
+    }
+    
     try {
+        // Add the product first
         const newProduct = await ProductService.addProduct({
-            name, price: parseFloat(price), unit, category, image: image || null
+            name, 
+            price: parseFloat(price), 
+            unit, 
+            category, 
+            image: image || null
         });
         
-        if (stockLimit && stockLimit > 0) {
-            await StockService.updateStockLimit(newProduct.id, parseFloat(stockLimit));
+        console.log(`✅ Product added: ${newProduct.id} - ${newProduct.name}`);
+        
+        // Add stock limit if provided and valid
+        if (stockLimit && !isNaN(stockLimit) && stockLimit > 0) {
+            try {
+                await StockService.updateStockLimit(newProduct.id, parseFloat(stockLimit));
+                console.log(`✅ Stock limit set for product ${newProduct.id}: ${stockLimit}`);
+            } catch (stockErr) {
+                console.error('⚠️ Error setting stock limit:', stockErr.message);
+                // Don't fail the whole request - product was added successfully
+            }
         }
         
+        // Refresh caches
         await refreshCache();
+        await updateProductStocks();
+        
         res.json({ success: true, message: "Product added successfully", product: newProduct });
     } catch (err) {
         console.error('Error adding product:', err);
-        res.status(500).json({ success: false, error: "Failed to add product" });
+        res.status(500).json({ success: false, error: err.message || "Failed to add product" });
     }
 });
 
