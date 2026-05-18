@@ -883,18 +883,38 @@ function displaySortedOrders(orders) {
     function closeProductModal() {
       document.getElementById('productModal').style.display = 'none';
     }
-// In admin.html - Replace the current form submission handler
+// Product form submission handler
 document.getElementById('productForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    // Get form values
+    const name = document.getElementById('productName').value.trim();
+    const price = parseFloat(document.getElementById('productPrice').value);
+    const unit = document.getElementById('productUnit').value;
+    const category = document.getElementById('productCategory').value;
+    const stockLimitInput = document.getElementById('productStockLimit').value;
+    const image = document.getElementById('productImage').value.trim();
+    
+    // Validate required fields
+    if (!name) {
+        alert('Please enter product name');
+        return;
+    }
+    if (isNaN(price) || price <= 0) {
+        alert('Please enter a valid price');
+        return;
+    }
+    
     const productData = {
-        name: document.getElementById('productName').value,
-        price: parseFloat(document.getElementById('productPrice').value),
-        unit: document.getElementById('productUnit').value,
-        category: document.getElementById('productCategory').value,
-        stockLimit: document.getElementById('productStockLimit').value ? parseFloat(document.getElementById('productStockLimit').value) : null,
-        image: document.getElementById('productImage').value
+        name: name,
+        price: price,
+        unit: unit,
+        category: category,
+        stockLimit: stockLimitInput && parseFloat(stockLimitInput) > 0 ? parseFloat(stockLimitInput) : null,
+        image: image || null
     };
+    
+    console.log('Sending product data:', productData); // Debug log
     
     try {
         const res = await fetch('/api/admin/add-product', {
@@ -905,19 +925,26 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
             },
             body: JSON.stringify(productData)
         });
+        
         const data = await res.json();
+        console.log('Response:', data); // Debug log
         
         if (data.success) {
-            alert('Product added successfully!');
+            alert('✅ Product added successfully!');
             closeProductModal();
-            fetchProducts();
-            fetchStocks(); // This will refresh the stock list
+            // Reset form
+            document.getElementById('productForm').reset();
+            document.getElementById('productUnit').value = 'kg';
+            document.getElementById('productCategory').value = 'Fruits';
+            // Refresh lists
+            await fetchProducts();
+            await fetchStocks();
         } else {
-            alert('Failed to add product: ' + (data.error || 'Unknown error'));
+            alert('❌ Failed to add product: ' + (data.error || 'Unknown error'));
         }
     } catch (err) {
         console.error('Error:', err);
-        alert('Error adding product: ' + err.message);
+        alert('❌ Error adding product: ' + err.message);
     }
 });
 
