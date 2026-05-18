@@ -65,18 +65,36 @@ class StockService {
         return limits;
     }
     
-    static async updateStockLimit(productId, limit) {
+   // stock.js - Fix the updateStockLimit method
+static async updateStockLimit(productId, limit) {
+    try {
+        // Get the product unit
+        const productQuery = 'SELECT unit FROM products WHERE id = $1';
+        const productResult = await pool.query(productQuery, [productId]);
+        
+        if (!productResult.rows[0]) {
+            console.error(`Product ${productId} not found for stock limit`);
+            return null;
+        }
+        
+        const productUnit = productResult.rows[0].unit;
+        
         const query = `
             INSERT INTO stock_limits (product_id, limit_quantity, unit)
-            VALUES ($1, $2, (SELECT unit FROM products WHERE id = $1))
+            VALUES ($1, $2, $3)
             ON CONFLICT (product_id) DO UPDATE SET
                 limit_quantity = $2,
+                unit = $3,
                 last_updated = CURRENT_TIMESTAMP
             RETURNING *
         `;
-        const result = await pool.query(query, [productId, limit]);
+        const result = await pool.query(query, [productId, limit, productUnit]);
         return result.rows[0];
+    } catch (err) {
+        console.error('Error in updateStockLimit:', err);
+        throw err;
     }
+}
     
     static async getAvailableStock(productId) {
         const limit = await this.getStockLimit(productId);
