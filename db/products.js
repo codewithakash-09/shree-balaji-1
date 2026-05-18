@@ -2,8 +2,7 @@ const { pool } = require('./db');
 
 class ProductService {
    static async getAllProducts() {
-    // Add ORDER BY id DESC to bring the newest products to the top
-    const query = 'SELECT * FROM products ORDER BY id DESC';
+    const query = 'SELECT * FROM products ORDER BY created_at DESC';
     const result = await pool.query(query);
     return result.rows;
 }
