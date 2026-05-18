@@ -883,42 +883,44 @@ function displaySortedOrders(orders) {
     function closeProductModal() {
       document.getElementById('productModal').style.display = 'none';
     }
-
-    document.getElementById('productForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const productData = {
+// In admin.html - Replace the current form submission handler
+document.getElementById('productForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const productData = {
         name: document.getElementById('productName').value,
         price: parseFloat(document.getElementById('productPrice').value),
         unit: document.getElementById('productUnit').value,
         category: document.getElementById('productCategory').value,
-        stockLimit: parseFloat(document.getElementById('productStockLimit').value) || null,
+        stockLimit: document.getElementById('productStockLimit').value ? parseFloat(document.getElementById('productStockLimit').value) : null,
         image: document.getElementById('productImage').value
-      };
-      
-      try {
+    };
+    
+    try {
         const res = await fetch('/api/admin/add-product', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'X-Admin-Token': adminToken
-          },
-          body: JSON.stringify(productData)
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Admin-Token': adminToken
+            },
+            body: JSON.stringify(productData)
         });
         const data = await res.json();
         
         if (data.success) {
-          alert('Product added successfully!');
-          closeProductModal();
-          fetchProducts();
-          fetchStocks();
+            alert('Product added successfully!');
+            closeProductModal();
+            fetchProducts();
+            fetchStocks(); // This will refresh the stock list
         } else {
-          alert('Failed to add product: ' + (data.error || 'Unknown error'));
+            alert('Failed to add product: ' + (data.error || 'Unknown error'));
         }
-      } catch (err) {
-        alert('Error adding product');
-      }
-    });
+    } catch (err) {
+        console.error('Error:', err);
+        alert('Error adding product: ' + err.message);
+    }
+});
+
   </script>
 </body>
 </html>
