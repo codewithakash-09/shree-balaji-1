@@ -1,11 +1,12 @@
 const { pool } = require('./db');
 
 class ProductService {
-    static async getAllProducts() {
-        const query = 'SELECT * FROM products ORDER BY id';
-        const result = await pool.query(query);
-        return result.rows;
-    }
+   static async getAllProducts() {
+    // Add ORDER BY id DESC to bring the newest products to the top
+    const query = 'SELECT * FROM products ORDER BY id DESC';
+    const result = await pool.query(query);
+    return result.rows;
+}
     
     static async getProductById(id) {
         const query = 'SELECT * FROM products WHERE id = $1';
