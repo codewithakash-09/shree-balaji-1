@@ -3,7 +3,7 @@ const { pool } = require('./db');
 class ProductService {
    static async getAllProducts() {
     // Sorted by id descending so the newest IDs appear at the top
-    const query = 'SELECT * FROM products ORDER BY id ';
+    const query = 'SELECT * FROM products ORDER BY id DESC';
     const result = await pool.query(query);
     return result.rows;
 }
